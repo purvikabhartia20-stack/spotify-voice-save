@@ -6,15 +6,17 @@
 <title>Spotify Voice Save prototype - Phase 2</title>
 <style>
   :root {
-    --bg: #121212;
-    --surface: #181818;
+    --bg-master: #000000;
+    --bg-panel: #121212;
+    --bg-card: #181818;
+    --bg-card-hover: #282828;
     --surface2: #242424;
     --surface3: #2a2a2a;
-    --green: #1ed760;
-    --green-dim: rgba(30, 215, 96, 0.15);
+    --green: #1db954;
+    --green-hover: #1ed760;
     --text: #ffffff;
     --text2: #b3b3b3;
-    --text3: #535353;
+    --radius-panel: 8px;
     --radius-card: 8px;
     --nav-height: 64px;
     --playbar-height: 90px;
@@ -25,7 +27,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   
   body {
-    background-color: var(--bg);
+    background-color: var(--bg-master);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     letter-spacing: -0.015em;
     color: var(--text);
@@ -43,45 +45,44 @@
       grid-template-areas: "sidebar main" "playbar playbar";
       grid-template-columns: var(--sidebar-width) 1fr;
       grid-template-rows: 1fr var(--playbar-height);
-      gap: 8px; padding: 8px; background: #000;
+      gap: 8px; padding: 8px; background: var(--bg-master);
     }
-    #sidebar { grid-area: sidebar; }
-    #main-area { grid-area: main; border-radius: var(--radius-card); background: var(--bg); position: relative; }
-    #bottom-playbar { grid-area: playbar; display: flex !important; }
+    #sidebar { grid-area: sidebar; border-radius: var(--radius-panel); background: var(--bg-panel); }
+    #main-area { grid-area: main; border-radius: var(--radius-panel); background: var(--bg-panel); position: relative; }
+    #bottom-playbar { grid-area: playbar; display: flex !important; background: var(--bg-master); padding: 0; }
     .mobile-only { display: none !important; }
   }
 
   /* --- MOBILE FLEX LAYOUT --- */
   @media (max-width: 767px) {
-    #app-container { display: flex; flex-direction: column; padding: 0; background: #000; }
+    #app-container { display: flex; flex-direction: column; padding: 0; background: var(--bg-master); }
     #sidebar, #bottom-playbar { display: none !important; }
-    #main-area { flex: 1; border-radius: 0; background: var(--bg); position: relative; }
+    #main-area { flex: 1; border-radius: 0; background: var(--bg-panel); position: relative; }
     .desktop-only { display: none !important; }
   }
 
   /* --- SIDEBAR (DESKTOP) --- */
   #sidebar {
-    display: flex; flex-direction: column;
-    background: var(--bg); border-radius: var(--radius-card); padding: 16px; gap: 16px;
+    display: flex; flex-direction: column; padding: 16px; gap: 16px;
   }
   .sidebar-nav { display: flex; flex-direction: column; gap: 8px; }
   .sidebar-item {
     background: none; border: none; color: var(--text2);
     display: flex; align-items: center; gap: 16px; padding: 12px;
     cursor: pointer; font-size: 14px; font-weight: 700; border-radius: 4px;
-    transition: color 0.2s, background 0.2s;
+    transition: color 0.2s;
   }
   .sidebar-item:hover { color: var(--text); }
-  .sidebar-item.active { color: var(--text); background: var(--surface3); }
+  .sidebar-item.active { color: var(--text); }
   .sidebar-item svg { width: 24px; height: 24px; fill: currentColor; }
   .sidebar-spacer { flex: 1; }
 
   .desktop-voice-widget {
-    background: rgba(30, 215, 96, 0.05); border: 1px solid rgba(30, 215, 96, 0.2);
+    background: rgba(29, 185, 84, 0.05); border: 1px solid rgba(29, 185, 84, 0.2);
     border-radius: 12px; padding: 16px; display: flex; flex-direction: column;
     align-items: center; gap: 12px; cursor: pointer; transition: background 0.2s, transform 0.2s;
   }
-  .desktop-voice-widget:hover { background: rgba(30, 215, 96, 0.1); }
+  .desktop-voice-widget:hover { background: rgba(29, 185, 84, 0.1); }
   .desktop-voice-widget:active { transform: scale(0.98); }
   .voice-ring {
     width: 60px; height: 60px; border-radius: 50%; background: var(--surface2);
@@ -119,8 +120,8 @@
   #view-home { position: relative; }
   .home-gradient {
     position: absolute; top: 0; left: 0; right: 0; height: 350px;
-    background: linear-gradient(to bottom, var(--dynamic-color), var(--bg));
-    opacity: 0.6; z-index: 1; pointer-events: none; transition: background 1s ease;
+    background: linear-gradient(to bottom, var(--dynamic-color), var(--bg-panel));
+    opacity: 0.5; z-index: 1; pointer-events: none; transition: background 1s ease;
   }
   .home-content { position: relative; z-index: 2; padding: 24px; padding-top: 16px; }
   
@@ -133,19 +134,45 @@
   @media (min-width: 768px) { .home-grid { grid-template-columns: 1fr 1fr 1fr; gap: 16px; } }
   .home-grid-item {
     background: rgba(255,255,255,0.1); border-radius: 4px; display: flex; align-items: center; gap: 12px;
-    overflow: hidden; transition: background 0.2s; cursor: pointer;
+    overflow: hidden; transition: background 0.3s; cursor: pointer; position: relative;
   }
   .home-grid-item:hover { background: rgba(255,255,255,0.2); }
   .home-grid-item img { width: 56px; height: 56px; object-fit: cover; }
-  .home-grid-item span { font-size: 13px; font-weight: 700; flex: 1; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; padding-right: 8px; }
+  .home-grid-item span { font-size: 14px; font-weight: 700; flex: 1; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; padding-right: 8px; }
   
+  .grid-play-btn {
+    position: absolute; right: 8px; width: 40px; height: 40px; border-radius: 50%; background: var(--green);
+    display: flex; justify-content: center; align-items: center; box-shadow: 0 8px 8px rgba(0,0,0,0.3);
+    opacity: 0; transform: translateY(8px); transition: all 0.3s ease; border: none;
+  }
+  .grid-play-btn svg { width: 20px; height: 20px; fill: #000; }
+  .home-grid-item:hover .grid-play-btn { opacity: 1; transform: translateY(0); }
+  .grid-play-btn:hover { background: var(--green-hover); transform: translateY(0) scale(1.04); }
+
   .home-shelf-title { font-size: 22px; font-weight: 700; margin-bottom: 16px; }
   .home-shelf { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 24px; scrollbar-width: none; }
   .home-shelf::-webkit-scrollbar { display: none; }
-  .shelf-item { width: 140px; display: flex; flex-direction: column; gap: 12px; cursor: pointer; flex-shrink: 0; }
-  .shelf-item img { width: 140px; height: 140px; border-radius: 8px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-  .shelf-item-title { font-size: 13px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+  
+  .shelf-item { 
+    width: 172px; display: flex; flex-direction: column; gap: 12px; cursor: pointer; flex-shrink: 0; 
+    background: var(--bg-card); padding: 16px; border-radius: var(--radius-card); transition: background 0.3s ease;
+    position: relative;
+  }
+  .shelf-item:hover { background: var(--bg-card-hover); }
+  .shelf-item img { width: 140px; height: 140px; border-radius: 6px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  .shelf-item-title { font-size: 15px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
   .shelf-item-desc { font-size: 13px; color: var(--text2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+
+  .card-play-btn {
+    position: absolute; bottom: 84px; right: 24px;
+    width: 48px; height: 48px; border-radius: 50%; background: var(--green);
+    display: flex; justify-content: center; align-items: center;
+    box-shadow: 0 8px 8px rgba(0,0,0,0.3);
+    opacity: 0; transform: translateY(8px); transition: all 0.3s ease; z-index: 10; border: none;
+  }
+  .card-play-btn svg { width: 24px; height: 24px; fill: #000; }
+  .shelf-item:hover .card-play-btn { opacity: 1; transform: translateY(0); }
+  .card-play-btn:hover { background: var(--green-hover); transform: translateY(0) scale(1.04); }
 
   /* --- LIBRARY SCREEN --- */
   .lib-content { padding: 24px; }
@@ -194,7 +221,7 @@
   /* --- MOBILE FULL NOW PLAYING OVERLAY --- */
   #mobile-now-playing {
     position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000;
-    background: linear-gradient(to bottom, var(--dynamic-color) 0%, var(--bg) 100%);
+    background: linear-gradient(to bottom, var(--dynamic-color) 0%, var(--bg-master) 100%);
     display: flex; flex-direction: column; padding: 24px;
     transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1), background 1s ease;
   }
@@ -215,7 +242,7 @@
   .np-info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
   .np-titles { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
   .np-title { font-size: 24px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
-  .np-artist { font-size: 16px; color: rgba(255,255,255,0.7); margin-top: 4px; }
+  .np-artist { font-size: 16px; color: var(--text2); margin-top: 4px; }
   
   .pill-container { height: 20px; margin-bottom: 12px; }
   .playlist-pill {
@@ -227,7 +254,7 @@
   .progress-container { margin-bottom: 24px; }
   .progress-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden; cursor: pointer; }
   .progress-bar-fill { height: 100%; background: #fff; width: 0%; transition: width 1s linear; }
-  .progress-times { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 8px; font-variant-numeric: tabular-nums; }
+  .progress-times { display: flex; justify-content: space-between; font-size: 11px; color: var(--text2); margin-top: 8px; font-variant-numeric: tabular-nums; }
 
   .controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
   .btn-icon { background: none; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -243,7 +270,7 @@
   /* --- DESKTOP PLAYBAR --- */
   #bottom-playbar {
     display: none; justify-content: space-between; align-items: center; padding: 0 16px;
-    background: var(--surface); border-radius: var(--radius-card); 
+    background: var(--bg-master); border-top: 1px solid rgba(255,255,255,0.05); 
   }
   .dt-left { display: flex; align-items: center; gap: 16px; width: 30%; }
   .dt-art { width: 56px; height: 56px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
@@ -264,9 +291,9 @@
 
   /* --- BOTTOM NAV (MOBILE) --- */
   #bottom-nav {
-    height: var(--nav-height); background: rgba(18, 18, 18, 0.95); backdrop-filter: blur(20px);
+    height: var(--nav-height); background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(20px);
     display: flex; justify-content: space-around; align-items: center;
-    padding-bottom: env(safe-area-bottom); flex-shrink: 0; z-index: 10;
+    padding-bottom: env(safe-area-bottom); flex-shrink: 0; z-index: 10; border-top: 1px solid rgba(255,255,255,0.1);
   }
   .nav-item { background: none; border: none; color: var(--text2); display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; min-height: 44px; min-width: 60px; transition: transform 0.2s, color 0.2s; touch-action: manipulation; }
   .nav-item:active { transform: scale(0.96); }
@@ -318,28 +345,92 @@
           </div>
           
           <div class="home-grid">
-            <div class="home-grid-item" onclick="playSong(1)"><img src="https://picsum.photos/seed/blinding/300/300" alt=""><span>Blinding Lights</span></div>
-            <div class="home-grid-item" onclick="playSong(11)"><img src="https://picsum.photos/seed/taylor2/300/300" alt=""><span>Lover</span></div>
-            <div class="home-grid-item" onclick="playSong(6)"><img src="https://picsum.photos/seed/metro/300/300" alt=""><span>Heroes & Villains</span></div>
-            <div class="home-grid-item" onclick="playSong(12)"><img src="https://picsum.photos/seed/ed/300/300" alt=""><span>Divide</span></div>
-            <div class="home-grid-item" onclick="playSong(22)"><img src="https://picsum.photos/seed/lil/300/300" alt=""><span>INDUSTRY BABY</span></div>
-            <div class="home-grid-item" onclick="playSong(3)"><img src="https://picsum.photos/seed/joji/300/300" alt=""><span>Smithereens</span></div>
+            <div class="home-grid-item" onclick="playSong(1)">
+              <img src="https://picsum.photos/seed/blinding/300/300" alt="">
+              <span>Blinding Lights</span>
+              <button class="grid-play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
+            <div class="home-grid-item" onclick="playSong(11)">
+              <img src="https://picsum.photos/seed/taylor2/300/300" alt="">
+              <span>Lover</span>
+              <button class="grid-play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
+            <div class="home-grid-item" onclick="playSong(6)">
+              <img src="https://picsum.photos/seed/metro/300/300" alt="">
+              <span>Heroes & Villains</span>
+              <button class="grid-play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
+            <div class="home-grid-item" onclick="playSong(12)">
+              <img src="https://picsum.photos/seed/ed/300/300" alt="">
+              <span>Divide</span>
+              <button class="grid-play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
+            <div class="home-grid-item" onclick="playSong(22)">
+              <img src="https://picsum.photos/seed/lil/300/300" alt="">
+              <span>INDUSTRY BABY</span>
+              <button class="grid-play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
+            <div class="home-grid-item" onclick="playSong(3)">
+              <img src="https://picsum.photos/seed/joji/300/300" alt="">
+              <span>Smithereens</span>
+              <button class="grid-play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
           </div>
           
           <h2 class="home-shelf-title">Recently Played</h2>
           <div class="home-shelf">
-            <div class="shelf-item" onclick="playSong(7)"><img src="https://picsum.photos/seed/taylor/300/300" alt=""><div class="shelf-item-title">Anti-Hero</div><div class="shelf-item-desc">Taylor Swift</div></div>
-            <div class="shelf-item" onclick="playSong(16)"><img src="https://picsum.photos/seed/olivia/300/300" alt=""><div class="shelf-item-title">good 4 u</div><div class="shelf-item-desc">Olivia Rodrigo</div></div>
-            <div class="shelf-item" onclick="playSong(20)"><img src="https://picsum.photos/seed/doja/300/300" alt=""><div class="shelf-item-title">Kiss Me More</div><div class="shelf-item-desc">Doja Cat</div></div>
-            <div class="shelf-item" onclick="playSong(13)"><img src="https://picsum.photos/seed/sun/300/300" alt=""><div class="shelf-item-title">Sunflower</div><div class="shelf-item-desc">Post Malone, Swae Lee</div></div>
-            <div class="shelf-item" onclick="playSong(4)"><img src="https://picsum.photos/seed/harry/300/300" alt=""><div class="shelf-item-title">As It Was</div><div class="shelf-item-desc">Harry Styles</div></div>
+            <div class="shelf-item" onclick="playSong(7)">
+              <img src="https://picsum.photos/seed/taylor/300/300" alt="">
+              <div class="shelf-item-title">Anti-Hero</div>
+              <div class="shelf-item-desc">Taylor Swift</div>
+              <button class="card-play-btn" onclick="event.stopPropagation(); playSong(7)"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
+            <div class="shelf-item" onclick="playSong(16)">
+              <img src="https://picsum.photos/seed/olivia/300/300" alt="">
+              <div class="shelf-item-title">good 4 u</div>
+              <div class="shelf-item-desc">Olivia Rodrigo</div>
+              <button class="card-play-btn" onclick="event.stopPropagation(); playSong(16)"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
+            <div class="shelf-item" onclick="playSong(20)">
+              <img src="https://picsum.photos/seed/doja/300/300" alt="">
+              <div class="shelf-item-title">Kiss Me More</div>
+              <div class="shelf-item-desc">Doja Cat</div>
+              <button class="card-play-btn" onclick="event.stopPropagation(); playSong(20)"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
+            <div class="shelf-item" onclick="playSong(13)">
+              <img src="https://picsum.photos/seed/sun/300/300" alt="">
+              <div class="shelf-item-title">Sunflower</div>
+              <div class="shelf-item-desc">Post Malone, Swae Lee</div>
+              <button class="card-play-btn" onclick="event.stopPropagation(); playSong(13)"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
+            <div class="shelf-item" onclick="playSong(4)">
+              <img src="https://picsum.photos/seed/harry/300/300" alt="">
+              <div class="shelf-item-title">As It Was</div>
+              <div class="shelf-item-desc">Harry Styles</div>
+              <button class="card-play-btn" onclick="event.stopPropagation(); playSong(4)"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
           </div>
           
           <h2 class="home-shelf-title">Made For You</h2>
           <div class="home-shelf">
-            <div class="shelf-item"><img src="https://picsum.photos/seed/d1/300/300" alt=""><div class="shelf-item-title">Daily Mix 1</div><div class="shelf-item-desc">The Weeknd, Post Malone, and more</div></div>
-            <div class="shelf-item"><img src="https://picsum.photos/seed/d2/300/300" alt=""><div class="shelf-item-title">Discover Weekly</div><div class="shelf-item-desc">New music updated every Monday</div></div>
-            <div class="shelf-item"><img src="https://picsum.photos/seed/d3/300/300" alt=""><div class="shelf-item-title">Release Radar</div><div class="shelf-item-desc">Catch up on the latest releases</div></div>
+            <div class="shelf-item">
+              <img src="https://picsum.photos/seed/d1/300/300" alt="">
+              <div class="shelf-item-title">Daily Mix 1</div>
+              <div class="shelf-item-desc">The Weeknd, Post Malone, and more</div>
+              <button class="card-play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
+            <div class="shelf-item">
+              <img src="https://picsum.photos/seed/d2/300/300" alt="">
+              <div class="shelf-item-title">Discover Weekly</div>
+              <div class="shelf-item-desc">New music updated every Monday</div>
+              <button class="card-play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
+            <div class="shelf-item">
+              <img src="https://picsum.photos/seed/d3/300/300" alt="">
+              <div class="shelf-item-title">Release Radar</div>
+              <div class="shelf-item-desc">Catch up on the latest releases</div>
+              <button class="card-play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            </div>
           </div>
         </div>
       </section>
