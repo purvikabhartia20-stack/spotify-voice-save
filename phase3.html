@@ -603,6 +603,7 @@
     </div>
   </div>
 
+  <audio id="global-audio-player" style="display:none;"></audio>
 </div>
 
 <script>
@@ -653,6 +654,7 @@
   let _rawState = {};
   let progressInterval = null;
   let libraryTimeInterval = null;
+  const audioPlayer = document.getElementById('global-audio-player');
 
   function loadState() {
     try {
@@ -703,16 +705,48 @@
   function getSong(id) { return STATE.songs.find(s => s.id === id) || STATE.songs[0]; }
   function getPlaylistsForSong(id) { return STATE.playlists.filter(p => p.songIds.includes(id)); }
 
-  function togglePlay() { STATE.playing = !STATE.playing; }
+  function togglePlay() { 
+    STATE.playing = !STATE.playing; 
+    if (STATE.playing) {
+      audioPlayer.play().catch(e => console.log('Audio play failed:', e));
+    } else {
+      audioPlayer.pause();
+    }
+  }
   function toggleMobileNowPlaying() { STATE.nowPlayingExpanded = !STATE.nowPlayingExpanded; }
   
-  function playSong(id) {
+  async function fetchPreviewUrl(song) {
+    try {
+      const q = encodeURIComponent(`${song.title} ${song.artist}`);
+      const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=song&limit=1`);
+      const data = await res.json();
+      if (data.results && data.results.length > 0 && data.results[0].previewUrl) {
+        return data.results[0].previewUrl;
+      }
+    } catch (e) {
+      console.log('Failed to fetch preview from iTunes:', e);
+    }
+    // Fallback royalty-free track if fetch fails or no preview exists
+    return "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+  }
+
+  async function playSong(id) {
     STATE.previousSongId = STATE.currentSongId;
     _rawState.currentSongId = id;
     _rawState.progress = 0;
     _rawState.playing = true;
+    
+    // Pause current
+    audioPlayer.pause();
+    audioPlayer.src = "";
     saveState();
     render('songChange');
+    
+    // Fetch and play new song
+    const song = getSong(id);
+    const previewUrl = await fetchPreviewUrl(song);
+    audioPlayer.src = previewUrl;
+    audioPlayer.play().catch(e => console.log('Autoplay prevented:', e));
   }
 
   function playNext() {
@@ -720,22 +754,19 @@
     STATE.playHistory.push(STATE.currentSongId);
     const currentIndex = STATE.songs.findIndex(s => s.id === STATE.currentSongId);
     const nextIndex = (currentIndex + 1) % STATE.songs.length;
-    _rawState.currentSongId = STATE.songs[nextIndex].id;
-    _rawState.progress = 0;
-    saveState();
-    render('songChange');
+    playSong(STATE.songs[nextIndex].id);
   }
 
   function playPrev() {
     if (STATE.progress > 3) {
-      STATE.progress = 0;
+      _rawState.progress = 0;
+      audioPlayer.currentTime = 0;
+      saveState();
+      render('progress');
     } else {
       const currentIndex = STATE.songs.findIndex(s => s.id === STATE.currentSongId);
       const prevIndex = (currentIndex - 1 + STATE.songs.length) % STATE.songs.length;
-      _rawState.currentSongId = STATE.songs[prevIndex].id;
-      _rawState.progress = 0;
-      saveState();
-      render('songChange');
+      playSong(STATE.songs[prevIndex].id);
     }
   }
 
@@ -772,14 +803,27 @@
   }
 
   function startEngine() {
-    if (progressInterval) clearInterval(progressInterval);
-    progressInterval = setInterval(() => {
-      if (STATE.playing) {
-        const song = getSong(STATE.currentSongId);
-        if (STATE.progress >= song.duration) playNext();
-        else STATE.progress++;
+    // Sync progress from HTMLAudioElement instead of artificial timer
+    audioPlayer.addEventListener('timeupdate', () => {
+      if (!audioPlayer.paused) {
+        _rawState.progress = audioPlayer.currentTime;
+        render('progress');
       }
-    }, 1000);
+    });
+
+    audioPlayer.addEventListener('ended', () => {
+      playNext();
+    });
+
+    // Handle initial state if playing from reload
+    if (STATE.playing) {
+      const song = getSong(STATE.currentSongId);
+      fetchPreviewUrl(song).then(url => {
+        audioPlayer.src = url;
+        audioPlayer.currentTime = STATE.progress;
+        audioPlayer.play().catch(e => console.log('Autoplay prevented on load', e));
+      });
+    }
 
     if (libraryTimeInterval) clearInterval(libraryTimeInterval);
     libraryTimeInterval = setInterval(() => {
@@ -874,22 +918,24 @@
       `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
       
     if (changedProp === 'progress') {
-      const pct = (STATE.progress / song.duration) * 100 + '%';
+      const duration = audioPlayer.duration && !isNaN(audioPlayer.duration) ? audioPlayer.duration : 30; // default 30s preview
+      const pct = (STATE.progress / duration) * 100 + '%';
       document.querySelectorAll('.dyn-progress').forEach(el => el.style.width = pct);
       document.querySelectorAll('.dyn-time-curr').forEach(el => el.textContent = formatTime(STATE.progress));
       return;
     }
 
+    const duration = audioPlayer.duration && !isNaN(audioPlayer.duration) ? audioPlayer.duration : 30;
     document.documentElement.style.setProperty('--dynamic-color', song.color);
     document.querySelectorAll('.dyn-title').forEach(el => el.textContent = song.title);
     document.querySelectorAll('.dyn-artist').forEach(el => el.textContent = song.artist);
-    document.querySelectorAll('.dyn-time-total').forEach(el => el.textContent = formatTime(song.duration));
+    document.querySelectorAll('.dyn-time-total').forEach(el => el.textContent = formatTime(duration));
     document.querySelectorAll('.dyn-art').forEach(el => {
       if (el.src !== song.cover) el.src = song.cover;
       el.classList.toggle('playing', STATE.playing);
     });
 
-    const pct = (STATE.progress / song.duration) * 100 + '%';
+    const pct = (STATE.progress / duration) * 100 + '%';
     document.querySelectorAll('.dyn-progress').forEach(el => el.style.width = pct);
     document.querySelectorAll('.dyn-time-curr').forEach(el => el.textContent = formatTime(STATE.progress));
 
