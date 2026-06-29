@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Spotify Voice Save prototype - Phase 2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000;
+    --surface: #121212;
+    --surface2: #242424;
+    --surface3: #2a2a2a;
+    --green: #1DB954;
+    --green-dim: rgba(29,185,84,0.15);
+    --text: #ffffff;
+    --text2: #b3b3b3;
+    --text3: #535353;
+    --radius-card: 8px;
+    --nav-height: 64px;
+    --playbar-height: 90px;
+    --sidebar-width: 250px;
+    --dynamic-color: #535353; /* Updated by JS */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  
+  body {
+    background-color: var(--bg);
+    font-family: 'Inter', sans-serif;
+    color: var(--text);
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  #app-container { width: 100%; height: 100%; display: flex; flex-direction: column; }
+
+  /* --- DESKTOP GRID LAYOUT --- */
+  @media (min-width: 768px) {
+    #app-container {
+      display: grid;
+      grid-template-areas: "sidebar main" "playbar playbar";
+      grid-template-columns: var(--sidebar-width) 1fr;
+      grid-template-rows: 1fr var(--playbar-height);
+      gap: 8px;
+      padding: 8px;
+    }
+    #sidebar { grid-area: sidebar; }
+    #main-area { grid-area: main; border-radius: var(--radius-card); background: var(--surface); }
+    #bottom-playbar { grid-area: playbar; display: flex !important; }
+    .mobile-only { display: none !important; }
+  }
+
+  /* --- MOBILE FLEX LAYOUT --- */
+  @media (max-width: 767px) {
+    #app-container { display: flex; flex-direction: column; padding: 0; }
+    #sidebar, #bottom-playbar { display: none !important; }
+    #main-area { flex: 1; border-radius: 0; background: var(--bg); }
+    .desktop-only { display: none !important; }
+  }
+
+  /* --- SIDEBAR (DESKTOP) --- */
+  #sidebar {
+    display: flex; flex-direction: column;
+    background: rgba(18, 18, 18, 0.7); backdrop-filter: blur(20px);
+    border-radius: var(--radius-card); padding: 16px; gap: 16px;
+  }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 8px; }
+  .sidebar-item {
+    background: none; border: none; color: var(--text2);
+    display: flex; align-items: center; gap: 16px; padding: 12px;
+    cursor: pointer; font-size: 14px; font-weight: 700; border-radius: 4px;
+    transition: color 0.2s, background 0.2s;
+  }
+  .sidebar-item:hover { color: var(--text); }
+  .sidebar-item.active { color: var(--text); background: var(--surface3); }
+  .sidebar-item svg { width: 24px; height: 24px; fill: currentColor; }
+  .sidebar-spacer { flex: 1; }
+
+  .desktop-voice-widget {
+    background: rgba(29, 185, 84, 0.05); border: 1px solid rgba(29, 185, 84, 0.2);
+    border-radius: 12px; padding: 16px; display: flex; flex-direction: column;
+    align-items: center; gap: 12px; cursor: pointer; transition: background 0.2s, transform 0.2s;
+  }
+  .desktop-voice-widget:hover { background: rgba(29, 185, 84, 0.1); }
+  .desktop-voice-widget:active { transform: scale(0.98); }
+  .voice-ring {
+    width: 60px; height: 60px; border-radius: 50%; background: var(--surface2);
+    display: flex; justify-content: center; align-items: center; position: relative;
+  }
+  .voice-ring svg { width: 28px; height: 28px; fill: var(--green); z-index: 2; }
+  @media (prefers-reduced-motion: no-preference) {
+    .voice-ring::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 50%; border: 2px solid var(--green);
+      animation: ripple 2s infinite cubic-bezier(0.65, 0, 0.34, 1);
+    }
+  }
+  @keyframes ripple { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+
+  /* --- MAIN AREA --- */
+  #main-area { display: flex; flex-direction: column; overflow: hidden; position: relative; }
+  header {
+    height: 64px; display: flex; justify-content: space-between; align-items: center;
+    padding: 0 24px; background: linear-gradient(rgba(0,0,0,0.6), transparent); flex-shrink: 0; z-index: 10;
+  }
+  .header-title { font-size: 24px; font-weight: 700; }
+  .mobile-pulse-dot { width: 8px; height: 8px; background-color: var(--green); border-radius: 50%; }
+  @media (prefers-reduced-motion: no-preference) { .mobile-pulse-dot { animation: pulse 2s infinite ease-in-out; } }
+  @keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(29, 185, 84, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); }
+  }
+
+  main { flex: 1; overflow-y: auto; padding: 24px; scrollbar-width: none; }
+  main::-webkit-scrollbar { display: none; }
+  .view-section { display: none; animation: fadeIn 0.15s ease; }
+  .view-section.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  
+  .placeholder-card { background: var(--surface2); border-radius: var(--radius-card); padding: 32px; text-align: center; margin-top: 20px; }
+  .placeholder-emoji { font-size: 56px; margin-bottom: 24px; display: block; }
+  .placeholder-text { color: var(--text2); font-size: 15px; line-height: 1.6; }
+
+  /* --- MOBILE MINI PLAYER --- */
+  #mini-player {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 0 8px 8px 8px; padding: 8px 12px; border-radius: 6px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.1), transparent), var(--dynamic-color);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5); cursor: pointer; flex-shrink: 0; z-index: 20;
+  }
+  .mini-player-left { display: flex; align-items: center; gap: 12px; flex: 1; overflow: hidden; }
+  .mini-album-art { width: 36px; height: 36px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .mini-info { display: flex; flex-direction: column; overflow: hidden; white-space: nowrap; }
+  .mini-title { font-size: 13px; font-weight: 600; text-overflow: ellipsis; overflow: hidden; }
+  .mini-artist { font-size: 11px; color: rgba(255,255,255,0.7); text-overflow: ellipsis; overflow: hidden; }
+  .mini-player-right { display: flex; align-items: center; gap: 16px; }
+  
+  /* Progress Bar underneath mini player */
+  .mini-progress-container { position: absolute; bottom: 0; left: 8px; right: 8px; height: 2px; background: rgba(255,255,255,0.2); border-radius: 0 0 6px 6px; overflow: hidden; }
+  .mini-progress-fill { height: 100%; background: #fff; width: 0%; transition: width 1s linear; }
+
+  /* --- MOBILE FULL NOW PLAYING OVERLAY --- */
+  #mobile-now-playing {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000;
+    background: linear-gradient(to bottom, var(--dynamic-color) 0%, var(--bg) 100%);
+    display: flex; flex-direction: column; padding: 24px;
+    transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  #mobile-now-playing.expanded { transform: translateY(0); }
+  .np-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; margin-top: 16px; }
+  .np-header button { background: none; border: none; color: #fff; cursor: pointer; padding: 8px; margin: -8px; }
+  .np-header svg { width: 24px; height: 24px; fill: currentColor; }
+  
+  .np-art-container { flex: 1; display: flex; align-items: center; justify-content: center; margin-bottom: 32px; }
+  .np-art { 
+    width: 100%; max-width: 340px; aspect-ratio: 1/1; object-fit: cover;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5); 
+    border-radius: 8px; /* Square by default */
+    transition: border-radius 0.3s;
+  }
+  
+  /* Vinyl Spin */
+  .np-art.vinyl { border-radius: 50%; animation: spin 8s linear infinite; animation-play-state: paused; }
+  .np-art.vinyl.playing { animation-play-state: running; }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+
+  .np-info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .np-titles { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+  .np-title { font-size: 24px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+  .np-artist { font-size: 16px; color: var(--text2); margin-top: 4px; }
+  
+  .pill-container { height: 20px; margin-bottom: 12px; }
+  .playlist-pill {
+    display: inline-flex; align-items: center; background: rgba(255,255,255,0.1);
+    padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; color: #fff; opacity: 0; transition: opacity 0.2s;
+  }
+  .playlist-pill.visible { opacity: 1; }
+
+  /* Progress Bar */
+  .progress-container { margin-bottom: 24px; }
+  .progress-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; cursor: pointer; }
+  .progress-bar-fill { height: 100%; background: #fff; width: 0%; transition: width 1s linear; }
+  .progress-times { display: flex; justify-content: space-between; font-size: 11px; color: var(--text2); margin-top: 8px; }
+
+  /* Controls */
+  .controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+  .btn-icon { background: none; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .btn-icon:active { transform: scale(0.9); }
+  .btn-icon svg { width: 24px; height: 24px; fill: currentColor; }
+  .btn-play { width: 64px; height: 64px; background: #fff; color: #000; border-radius: 50%; }
+  .btn-play svg { width: 28px; height: 28px; }
+
+  /* Heart Button */
+  .heart-btn { width: 32px; height: 32px; }
+  .heart-btn svg { width: 24px; height: 24px; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); fill: transparent; stroke: #fff; stroke-width: 1.5; }
+  .heart-btn.active svg { fill: var(--green); stroke: var(--green); transform: scale(1.2); }
+
+  /* --- DESKTOP PLAYBAR --- */
+  #bottom-playbar {
+    display: none; justify-content: space-between; align-items: center; padding: 0 16px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.05), transparent), var(--surface);
+    border-radius: var(--radius-card); border-left: 4px solid var(--dynamic-color);
+  }
+  .dt-left { display: flex; align-items: center; gap: 16px; width: 30%; }
+  .dt-art { width: 56px; height: 56px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .dt-art.vinyl { border-radius: 50%; animation: spin 8s linear infinite; animation-play-state: paused; }
+  .dt-art.vinyl.playing { animation-play-state: running; }
+
+  .dt-center { display: flex; flex-direction: column; align-items: center; width: 40%; max-width: 600px; gap: 8px; }
+  .dt-controls { display: flex; align-items: center; gap: 24px; }
+  .dt-btn { background: none; border: none; color: var(--text2); cursor: pointer; }
+  .dt-btn:hover { color: #fff; }
+  .dt-btn svg { width: 16px; height: 16px; fill: currentColor; }
+  .dt-play { width: 32px; height: 32px; background: #fff; color: #000; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
+  .dt-play:hover { transform: scale(1.05); }
+  .dt-play svg { width: 16px; height: 16px; }
+  
+  .dt-progress-row { display: flex; align-items: center; width: 100%; gap: 8px; font-size: 11px; color: var(--text2); }
+  .dt-progress-bg { flex: 1; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+  .dt-progress-fill { height: 100%; background: #fff; width: 0%; border-radius: 2px; transition: width 1s linear; }
+  
+  .dt-right { width: 30%; display: flex; justify-content: flex-end; align-items: center; gap: 16px; }
+
+  /* --- BOTTOM NAV (MOBILE) --- */
+  #bottom-nav {
+    height: var(--nav-height); background: rgba(18, 18, 18, 0.95); backdrop-filter: blur(20px);
+    display: flex; justify-content: space-around; align-items: center;
+    padding-bottom: env(safe-area-bottom); flex-shrink: 0; z-index: 10;
+  }
+  .nav-item { background: none; border: none; color: var(--text2); display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; min-height: 44px; min-width: 60px; transition: transform 0.2s, opacity 0.2s; touch-action: manipulation; }
+  .nav-item:active { transform: scale(0.96); }
+  .nav-item.active { color: var(--text); }
+  .nav-item svg { fill: currentColor; width: 24px; height: 24px; }
+  .nav-item.active svg.voice-icon { fill: var(--green); }
+  .nav-label { font-size: 11px; font-weight: 500; }
+  .nav-item.active .voice-label { color: var(--green); }
+
+</style>
+</head>
+<body>
+
+<div id="app-container">
+  
+  <!-- DESKTOP SIDEBAR -->
+  <aside id="sidebar" class="desktop-only">
+    <nav class="sidebar-nav">
+      <button class="sidebar-item active" data-tab="home">
+        <svg viewBox="0 0 24 24"><path d="M12.5 3.248a.75.75 0 0 0-1 0L4.25 8.941l-.25.21v11.1c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-5.5h4v5.5a.75.75 0 0 0 .75.75h4.5a.75.75 0 0 0 .75-.75v-11.1l-.25-.21-7.25-5.693Z"/></svg>
+        <span>Home</span>
+      </button>
+      <button class="sidebar-item" data-tab="search">
+        <svg viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z"/></svg>
+        <span>Search</span>
+      </button>
+      <button class="sidebar-item" data-tab="library">
+        <svg viewBox="0 0 24 24"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 5h-3v5.5c0 1.38-1.12 2.5-2.5 2.5S10 13.88 10 12.5s1.12-2.5 2.5-2.5c.57 0 1.08.19 1.5.51V5h4v2zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6z"/></svg>
+        <span>Your Library</span>
+      </button>
+    </nav>
+    <div class="sidebar-spacer"></div>
+    <div class="desktop-voice-widget" data-tab="voice">
+      <div class="voice-ring"><svg viewBox="0 0 24 24"><path d="M12 2c-1.657 0-3 1.343-3 3v7c0 1.657 1.343 3 3 3s3-1.343 3-3V5c0-1.657-1.343-3-3-3zM7 11.5a.5.5 0 0 0-1 0 6 6 0 0 0 12 0 .5.5 0 0 0-1 0 5 5 0 0 1-10 0zm4 7.402V21.5a.5.5 0 0 0 1 0v-2.598A7.004 7.004 0 0 0 18.5 11.5a.5.5 0 0 0-1 0 6 6 0 0 1-11 0 .5.5 0 0 0-1 0 7.004 7.004 0 0 0 6.5 7.402z"/></svg></div>
+      <span style="font-size: 13px; font-weight: 600; color: var(--green);">Always Listening</span>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <div id="main-area">
+    <header id="top-bar">
+      <div class="header-title" id="header-title">Good evening</div>
+      <div class="voice-indicator mobile-only"><div class="mobile-pulse-dot"></div></div>
+    </header>
+
+    <main id="content-area">
+      <section id="view-home" class="view-section active">
+        <div class="placeholder-card"><span class="placeholder-emoji">🏠</span><h2>Home</h2><p class="placeholder-text">Your personalized feed and saved sessions will appear here in Phase 5.</p></div>
+      </section>
+      <section id="view-search" class="view-section">
+        <div class="placeholder-card"><span class="placeholder-emoji">🔍</span><h2>Search</h2><p class="placeholder-text">Discover new music and podcasts. (Not implemented in this prototype).</p></div>
+      </section>
+      <section id="view-library" class="view-section">
+        <div class="placeholder-card"><span class="placeholder-emoji">📚</span><h2>Your Library</h2><p class="placeholder-text">Playlists and liked songs will appear here in Phase 3.</p></div>
+      </section>
+      <section id="view-voice" class="view-section">
+        <div class="placeholder-card"><span class="placeholder-emoji">🎙️</span><h2>Voice Save</h2><p class="placeholder-text">The voice engine and voice settings will live here in Phase 4.</p></div>
+      </section>
+    </main>
+
+    <!-- MOBILE MINI PLAYER -->
+    <div id="mini-player" class="mobile-only" onclick="toggleMobileNowPlaying()">
+      <div class="mini-player-left">
+        <img class="mini-album-art dyn-art" src="" alt="Album Art">
+        <div class="mini-info">
+          <span class="mini-title dyn-title">Song Title</span>
+          <span class="mini-artist dyn-artist">Artist</span>
+        </div>
+      </div>
+      <div class="mini-player-right">
+        <button class="btn-icon heart-btn dyn-heart" onclick="event.stopPropagation(); toggleHeart()">
+          <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        </button>
+        <button class="btn-icon dyn-playbtn" onclick="event.stopPropagation(); togglePlay()">
+          <!-- SVG injected by JS -->
+        </button>
+      </div>
+      <div class="mini-progress-container"><div class="mini-progress-fill dyn-progress"></div></div>
+    </div>
+  </div>
+
+  <!-- MOBILE FULL NOW PLAYING OVERLAY -->
+  <div id="mobile-now-playing" class="mobile-only">
+    <div class="np-header">
+      <button onclick="toggleMobileNowPlaying()"><svg viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z" transform="rotate(-90 12 12)"/></svg></button>
+      <span style="font-size: 13px; font-weight: 700;">Now Playing</span>
+      <div style="width: 24px;"></div> <!-- spacer -->
+    </div>
+    
+    <div class="np-art-container">
+      <img class="np-art dyn-art vinyl" src="" alt="Album Art">
+    </div>
+
+    <div class="pill-container">
+      <span class="playlist-pill dyn-pill">In 2 playlists</span>
+    </div>
+
+    <div class="np-info-row">
+      <div class="np-titles">
+        <div class="np-title dyn-title">Title</div>
+        <div class="np-artist dyn-artist">Artist</div>
+      </div>
+      <button class="btn-icon heart-btn dyn-heart" onclick="toggleHeart()">
+        <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      </button>
+    </div>
+
+    <div class="progress-container">
+      <div class="progress-bar-bg"><div class="progress-bar-fill dyn-progress"></div></div>
+      <div class="progress-times">
+        <span class="dyn-time-curr">0:00</span>
+        <span class="dyn-time-total">3:20</span>
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <button class="btn-icon"><svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg></button>
+      <button class="btn-icon" onclick="playPrev()"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+      <button class="btn-icon btn-play dyn-playbtn" onclick="togglePlay()"></button>
+      <button class="btn-icon" onclick="playNext()"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+      <button class="btn-icon"><svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg></button>
+    </div>
+  </div>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav id="bottom-nav" class="mobile-only">
+    <button class="nav-item active" data-tab="home">
+      <svg viewBox="0 0 24 24"><path d="M12.5 3.248a.75.75 0 0 0-1 0L4.25 8.941l-.25.21v11.1c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-5.5h4v5.5a.75.75 0 0 0 .75.75h4.5a.75.75 0 0 0 .75-.75v-11.1l-.25-.21-7.25-5.693Z"/></svg>
+      <span class="nav-label">Home</span>
+    </button>
+    <button class="nav-item" data-tab="search">
+      <svg viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z"/></svg>
+      <span class="nav-label">Search</span>
+    </button>
+    <button class="nav-item" data-tab="library">
+      <svg viewBox="0 0 24 24"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 5h-3v5.5c0 1.38-1.12 2.5-2.5 2.5S10 13.88 10 12.5s1.12-2.5 2.5-2.5c.57 0 1.08.19 1.5.51V5h4v2zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6z"/></svg>
+      <span class="nav-label">Your Library</span>
+    </button>
+    <button class="nav-item" data-tab="voice">
+      <svg class="voice-icon" viewBox="0 0 24 24"><path d="M12 2c-1.657 0-3 1.343-3 3v7c0 1.657 1.343 3 3 3s3-1.343 3-3V5c0-1.657-1.343-3-3-3zM7 11.5a.5.5 0 0 0-1 0 6 6 0 0 0 12 0 .5.5 0 0 0-1 0 5 5 0 0 1-10 0zm4 7.402V21.5a.5.5 0 0 0 1 0v-2.598A7.004 7.004 0 0 0 18.5 11.5a.5.5 0 0 0-1 0 6 6 0 0 1-11 0 .5.5 0 0 0-1 0 7.004 7.004 0 0 0 6.5 7.402z"/></svg>
+      <span class="nav-label voice-label">Voice</span>
+    </button>
+  </nav>
+
+  <!-- DESKTOP BOTTOM PLAYBAR -->
+  <div id="bottom-playbar" class="desktop-only">
+    <div class="dt-left">
+      <img class="dt-art dyn-art vinyl" src="" alt="">
+      <div style="display:flex; flex-direction:column; overflow:hidden;">
+        <span class="dyn-title" style="font-size:14px; font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">Title</span>
+        <span class="dyn-artist" style="font-size:12px; color:var(--text2); white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">Artist</span>
+      </div>
+      <button class="btn-icon heart-btn dyn-heart" onclick="toggleHeart()" style="width:20px;height:20px;">
+        <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      </button>
+    </div>
+    
+    <div class="dt-center">
+      <div class="dt-controls">
+        <button class="dt-btn"><svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg></button>
+        <button class="dt-btn" onclick="playPrev()"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+        <button class="dt-btn dt-play dyn-playbtn" onclick="togglePlay()"></button>
+        <button class="dt-btn" onclick="playNext()"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+        <button class="dt-btn"><svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg></button>
+      </div>
+      <div class="dt-progress-row">
+        <span class="dyn-time-curr">0:00</span>
+        <div class="dt-progress-bg"><div class="dt-progress-fill dyn-progress"></div></div>
+        <span class="dyn-time-total">0:00</span>
+      </div>
+    </div>
+    
+    <div class="dt-right">
+       <!-- Volume control mockup -->
+       <svg style="width:16px;height:16px;fill:var(--text2)" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+       <div style="width:80px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;"><div style="width:70%;height:100%;background:#fff;border-radius:2px;"></div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // DEFAULT STATE
+  const DEFAULT_STATE = {
+    activeTab: 'home',
+    nowPlayingExpanded: false,
+    songs: [
+      {id:1, title:"Blinding Lights", artist:"The Weeknd", album:"After Hours", duration:200, cover:"https://picsum.photos/seed/bl/300/300", energy:"high", mood:"euphoric", genre:"synthpop", color:"#b02a2a"},
+      {id:2, title:"Levitating", artist:"Dua Lipa", album:"Future Nostalgia", duration:203, cover:"https://picsum.photos/seed/lev/300/300", energy:"high", mood:"happy", genre:"pop", color:"#a832a8"},
+      {id:3, title:"Tum Se Hi", artist:"Mohit Chauhan", album:"Jab We Met", duration:312, cover:"https://picsum.photos/seed/tsh/300/300", energy:"low", mood:"romantic", genre:"bollywood", color:"#326da8"},
+      {id:4, title:"Falani", artist:"Masoom Sharma", album:"Haryanvi Hits", duration:224, cover:"https://picsum.photos/seed/fal/300/300", energy:"high", mood:"energetic", genre:"haryanvi", color:"#a86d32"},
+      {id:5, title:"Glimpse of Us", artist:"Joji", album:"Smithereens", duration:234, cover:"https://picsum.photos/seed/gou/300/300", energy:"low", mood:"melancholic", genre:"indie", color:"#222222"}
+    ],
+    playlists: [
+      {id:"p1", name:"Late Night Drives", songIds:[]},
+      {id:"p2", name:"Chill Vibes", songIds:[1,3]},
+      {id:"p3", name:"Discover Mix", songIds:[2]},
+      {id:"p4", name:"Study Mode", songIds:[]}
+    ],
+    likedSongs: [2], likedSongTimestamps: {}, currentSongId: 1, previousSongId: null, previousPreviousSongId: null,
+    playHistory: [], playing: true, progress: 0, shuffleActive: false, repeatActive: false, volume: 70, sleepTimerEnd: null,
+    tasteProfile: {genres:{}, moods:{}, artists:{}, totalSaves:0}, sessionSignals: [], discoveryFeed: [], lastSavedSongId: null,
+    lastAction: null, lastActionTimestamp: null, voiceFeedbackEnabled: true, unknownCommandCount: 0, lastUnknownCommandTimestamp: null, proactiveNudgeShown: false
+  };
+
+  const STORAGE_KEY = 'spotify_voice_save_state';
+  let _rawState = {};
+  let progressInterval = null;
+
+  // INITIALIZATION
+  function loadState() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        _rawState = { ...DEFAULT_STATE, ...parsed };
+        _rawState.sessionSignals = [];
+        _rawState.proactiveNudgeShown = false;
+        _rawState.nowPlayingExpanded = false; // reset UI state
+      } else {
+        _rawState = { ...DEFAULT_STATE };
+      }
+    } catch (e) {
+      _rawState = { ...DEFAULT_STATE };
+    }
+  }
+
+  // PERSISTENCE
+  let saveTimeout = null;
+  function saveState() {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      try {
+        const toSave = { ..._rawState };
+        delete toSave.sessionSignals;
+        delete toSave.proactiveNudgeShown;
+        delete toSave.nowPlayingExpanded;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+      } catch(e) {}
+    }, 100);
+  }
+
+  // REACTIVE PROXY
+  const proxyHandler = {
+    set(target, property, value) {
+      target[property] = value;
+      if (property !== 'progress') saveState(); // Don't thrash localstorage every second
+      render(property);
+      return true;
+    }
+  };
+  
+  loadState();
+  const STATE = new Proxy(_rawState, proxyHandler);
+
+  // HELPERS
+  function formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+
+  function getSong(id) {
+    return STATE.songs.find(s => s.id === id) || STATE.songs[0];
+  }
+  
+  function getPlaylistsForSong(id) {
+    return STATE.playlists.filter(p => p.songIds.includes(id));
+  }
+
+  // TRANSPORT LOGIC
+  function togglePlay() { STATE.playing = !STATE.playing; }
+  function toggleMobileNowPlaying() { STATE.nowPlayingExpanded = !STATE.nowPlayingExpanded; }
+  
+  function playNext() {
+    STATE.previousPreviousSongId = STATE.previousSongId;
+    STATE.previousSongId = STATE.currentSongId;
+    STATE.playHistory.push(STATE.currentSongId);
+    
+    const currentIndex = STATE.songs.findIndex(s => s.id === STATE.currentSongId);
+    const nextIndex = (currentIndex + 1) % STATE.songs.length;
+    
+    // Batch update via raw object to prevent multiple renders, then trigger one render manually
+    _rawState.currentSongId = STATE.songs[nextIndex].id;
+    _rawState.progress = 0;
+    saveState();
+    render('songChange');
+  }
+
+  function playPrev() {
+    if (STATE.progress > 3) {
+      STATE.progress = 0;
+    } else {
+      const currentIndex = STATE.songs.findIndex(s => s.id === STATE.currentSongId);
+      const prevIndex = (currentIndex - 1 + STATE.songs.length) % STATE.songs.length;
+      _rawState.currentSongId = STATE.songs[prevIndex].id;
+      _rawState.progress = 0;
+      saveState();
+      render('songChange');
+    }
+  }
+
+  function toggleHeart() {
+    const id = STATE.currentSongId;
+    const isLiked = STATE.likedSongs.includes(id);
+    if (isLiked) {
+      STATE.likedSongs = STATE.likedSongs.filter(sid => sid !== id);
+    } else {
+      STATE.likedSongs = [...STATE.likedSongs, id];
+    }
+  }
+
+  // TIMER LOOP
+  function startEngine() {
+    if (progressInterval) clearInterval(progressInterval);
+    progressInterval = setInterval(() => {
+      if (STATE.playing) {
+        const song = getSong(STATE.currentSongId);
+        if (STATE.progress >= song.duration) {
+          playNext();
+        } else {
+          STATE.progress++;
+        }
+      }
+    }, 1000);
+  }
+
+  // RENDER LOGIC
+  // We pass changedProp to optimize updates (e.g. only update progress bar if only progress changed)
+  function render(changedProp) {
+    const song = getSong(STATE.currentSongId);
+    const isLiked = STATE.likedSongs.includes(song.id);
+    const playSvg = STATE.playing ? 
+      `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>` : 
+      `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+      
+    // 1. FAST PATH: Only progress changed
+    if (changedProp === 'progress') {
+      const pct = (STATE.progress / song.duration) * 100 + '%';
+      document.querySelectorAll('.dyn-progress').forEach(el => el.style.width = pct);
+      document.querySelectorAll('.dyn-time-curr').forEach(el => el.textContent = formatTime(STATE.progress));
+      return;
+    }
+
+    // 2. FULL RENDER
+    // Dynamic Color
+    document.documentElement.style.setProperty('--dynamic-color', song.color);
+
+    // Text & Art
+    document.querySelectorAll('.dyn-title').forEach(el => el.textContent = song.title);
+    document.querySelectorAll('.dyn-artist').forEach(el => el.textContent = song.artist);
+    document.querySelectorAll('.dyn-time-total').forEach(el => el.textContent = formatTime(song.duration));
+    document.querySelectorAll('.dyn-art').forEach(el => {
+      if (el.src !== song.cover) el.src = song.cover;
+      el.classList.toggle('playing', STATE.playing);
+    });
+
+    // Progress Bar Reset
+    const pct = (STATE.progress / song.duration) * 100 + '%';
+    document.querySelectorAll('.dyn-progress').forEach(el => el.style.width = pct);
+    document.querySelectorAll('.dyn-time-curr').forEach(el => el.textContent = formatTime(STATE.progress));
+
+    // Controls
+    document.querySelectorAll('.dyn-playbtn').forEach(el => el.innerHTML = playSvg);
+    document.querySelectorAll('.dyn-heart').forEach(el => {
+      el.classList.toggle('active', isLiked);
+    });
+
+    // Pill
+    const pill = document.querySelector('.dyn-pill');
+    const inPlaylists = getPlaylistsForSong(song.id);
+    if (inPlaylists.length > 0) {
+      pill.textContent = `In ${inPlaylists.length} playlist${inPlaylists.length > 1 ? 's' : ''}`;
+      pill.classList.add('visible');
+    } else {
+      pill.classList.remove('visible');
+    }
+
+    // Mobile Now Playing Overlay
+    const npOverlay = document.getElementById('mobile-now-playing');
+    if (npOverlay) {
+      npOverlay.classList.toggle('expanded', STATE.nowPlayingExpanded);
+    }
+
+    // Tabs / Views
+    const tab = STATE.activeTab || 'home';
+    document.querySelectorAll('.view-section').forEach(el => el.classList.toggle('active', el.id === 'view-' + tab));
+    document.querySelectorAll('[data-tab]').forEach(el => el.classList.toggle('active', el.getAttribute('data-tab') === tab));
+    
+    const headerTitle = document.getElementById('header-title');
+    if (tab === 'home') headerTitle.textContent = 'Good evening';
+    else if (tab === 'search') headerTitle.textContent = 'Search';
+    else if (tab === 'library') headerTitle.textContent = 'Your Library';
+    else if (tab === 'voice') headerTitle.textContent = 'Voice Settings';
+  }
+
+  // INIT
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetTab = btn.getAttribute('data-tab');
+        if (STATE.activeTab !== targetTab) STATE.activeTab = targetTab;
+      });
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+      else if (e.code === 'KeyM') { STATE.volume = STATE.volume > 0 ? 0 : 70; }
+      else if (e.code === 'ArrowRight') { e.preventDefault(); playNext(); }
+      else if (e.code === 'ArrowLeft') { e.preventDefault(); playPrev(); }
+    });
+
+    render();
+    startEngine();
+  });
+
+</script>
+</body>
+</html>
