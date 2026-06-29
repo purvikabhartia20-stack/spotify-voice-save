@@ -4,15 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Spotify Voice Save prototype - Phase 2</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #000000;
-    --surface: #121212;
+    --bg: #121212;
+    --surface: #181818;
     --surface2: #242424;
     --surface3: #2a2a2a;
-    --green: #1DB954;
-    --green-dim: rgba(29,185,84,0.15);
+    --green: #1ed760;
+    --green-dim: rgba(30, 215, 96, 0.15);
     --text: #ffffff;
     --text2: #b3b3b3;
     --text3: #535353;
@@ -20,14 +19,15 @@
     --nav-height: 64px;
     --playbar-height: 90px;
     --sidebar-width: 250px;
-    --dynamic-color: #535353; /* Updated by JS */
+    --dynamic-color: #535353;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   
   body {
     background-color: var(--bg);
-    font-family: 'Inter', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    letter-spacing: -0.015em;
     color: var(--text);
     height: 100vh;
     height: 100dvh;
@@ -43,28 +43,26 @@
       grid-template-areas: "sidebar main" "playbar playbar";
       grid-template-columns: var(--sidebar-width) 1fr;
       grid-template-rows: 1fr var(--playbar-height);
-      gap: 8px;
-      padding: 8px;
+      gap: 8px; padding: 8px; background: #000;
     }
     #sidebar { grid-area: sidebar; }
-    #main-area { grid-area: main; border-radius: var(--radius-card); background: var(--surface); }
+    #main-area { grid-area: main; border-radius: var(--radius-card); background: var(--bg); position: relative; }
     #bottom-playbar { grid-area: playbar; display: flex !important; }
     .mobile-only { display: none !important; }
   }
 
   /* --- MOBILE FLEX LAYOUT --- */
   @media (max-width: 767px) {
-    #app-container { display: flex; flex-direction: column; padding: 0; }
+    #app-container { display: flex; flex-direction: column; padding: 0; background: #000; }
     #sidebar, #bottom-playbar { display: none !important; }
-    #main-area { flex: 1; border-radius: 0; background: var(--bg); }
+    #main-area { flex: 1; border-radius: 0; background: var(--bg); position: relative; }
     .desktop-only { display: none !important; }
   }
 
   /* --- SIDEBAR (DESKTOP) --- */
   #sidebar {
     display: flex; flex-direction: column;
-    background: rgba(18, 18, 18, 0.7); backdrop-filter: blur(20px);
-    border-radius: var(--radius-card); padding: 16px; gap: 16px;
+    background: var(--bg); border-radius: var(--radius-card); padding: 16px; gap: 16px;
   }
   .sidebar-nav { display: flex; flex-direction: column; gap: 8px; }
   .sidebar-item {
@@ -79,11 +77,11 @@
   .sidebar-spacer { flex: 1; }
 
   .desktop-voice-widget {
-    background: rgba(29, 185, 84, 0.05); border: 1px solid rgba(29, 185, 84, 0.2);
+    background: rgba(30, 215, 96, 0.05); border: 1px solid rgba(30, 215, 96, 0.2);
     border-radius: 12px; padding: 16px; display: flex; flex-direction: column;
     align-items: center; gap: 12px; cursor: pointer; transition: background 0.2s, transform 0.2s;
   }
-  .desktop-voice-widget:hover { background: rgba(29, 185, 84, 0.1); }
+  .desktop-voice-widget:hover { background: rgba(30, 215, 96, 0.1); }
   .desktop-voice-widget:active { transform: scale(0.98); }
   .voice-ring {
     width: 60px; height: 60px; border-radius: 50%; background: var(--surface2);
@@ -101,11 +99,7 @@
 
   /* --- MAIN AREA --- */
   #main-area { display: flex; flex-direction: column; overflow: hidden; position: relative; }
-  header {
-    height: 64px; display: flex; justify-content: space-between; align-items: center;
-    padding: 0 24px; background: linear-gradient(rgba(0,0,0,0.6), transparent); flex-shrink: 0; z-index: 10;
-  }
-  .header-title { font-size: 24px; font-weight: 700; }
+  
   .mobile-pulse-dot { width: 8px; height: 8px; background-color: var(--green); border-radius: 50%; }
   @media (prefers-reduced-motion: no-preference) { .mobile-pulse-dot { animation: pulse 2s infinite ease-in-out; } }
   @keyframes pulse {
@@ -114,32 +108,87 @@
     100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); }
   }
 
-  main { flex: 1; overflow-y: auto; padding: 24px; scrollbar-width: none; }
+  main { flex: 1; overflow-y: auto; scrollbar-width: none; }
   main::-webkit-scrollbar { display: none; }
-  .view-section { display: none; animation: fadeIn 0.15s ease; }
+  
+  .view-section { display: none; animation: fadeIn 0.15s ease; height: 100%; }
   .view-section.active { display: block; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* --- HOME SCREEN --- */
+  #view-home { position: relative; }
+  .home-gradient {
+    position: absolute; top: 0; left: 0; right: 0; height: 350px;
+    background: linear-gradient(to bottom, var(--dynamic-color), var(--bg));
+    opacity: 0.6; z-index: 1; pointer-events: none; transition: background 1s ease;
+  }
+  .home-content { position: relative; z-index: 2; padding: 24px; padding-top: 16px; }
   
-  .placeholder-card { background: var(--surface2); border-radius: var(--radius-card); padding: 32px; text-align: center; margin-top: 20px; }
-  .placeholder-emoji { font-size: 56px; margin-bottom: 24px; display: block; }
-  .placeholder-text { color: var(--text2); font-size: 15px; line-height: 1.6; }
+  .home-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .home-greeting { font-size: 24px; font-weight: 700; }
+  .home-header-icons { display: flex; gap: 16px; align-items: center; }
+  .home-header-icons svg { width: 24px; height: 24px; fill: #fff; cursor: pointer; }
+
+  .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 36px; }
+  @media (min-width: 768px) { .home-grid { grid-template-columns: 1fr 1fr 1fr; gap: 16px; } }
+  .home-grid-item {
+    background: rgba(255,255,255,0.1); border-radius: 4px; display: flex; align-items: center; gap: 12px;
+    overflow: hidden; transition: background 0.2s; cursor: pointer;
+  }
+  .home-grid-item:hover { background: rgba(255,255,255,0.2); }
+  .home-grid-item img { width: 56px; height: 56px; object-fit: cover; }
+  .home-grid-item span { font-size: 13px; font-weight: 700; flex: 1; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; padding-right: 8px; }
+  
+  .home-shelf-title { font-size: 22px; font-weight: 700; margin-bottom: 16px; }
+  .home-shelf { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 24px; scrollbar-width: none; }
+  .home-shelf::-webkit-scrollbar { display: none; }
+  .shelf-item { width: 140px; display: flex; flex-direction: column; gap: 12px; cursor: pointer; flex-shrink: 0; }
+  .shelf-item img { width: 140px; height: 140px; border-radius: 8px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+  .shelf-item-title { font-size: 13px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+  .shelf-item-desc { font-size: 13px; color: var(--text2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+
+  /* --- LIBRARY SCREEN --- */
+  .lib-content { padding: 24px; }
+  .lib-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .lib-title-row { display: flex; align-items: center; gap: 16px; }
+  .lib-profile { width: 32px; height: 32px; border-radius: 50%; background: #ff5e3a; display: flex; justify-content: center; align-items: center; font-weight: 700; font-size: 14px; }
+  .lib-title { font-size: 24px; font-weight: 700; }
+  .lib-pills { display: flex; gap: 12px; margin-bottom: 24px; overflow-x: auto; scrollbar-width: none; }
+  .lib-pills::-webkit-scrollbar { display: none; }
+  .lib-pill { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.05); border-radius: 30px; padding: 8px 16px; font-size: 13px; font-weight: 400; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+  .lib-pill:hover { background: rgba(255,255,255,0.2); }
+  
+  .lib-list { display: flex; flex-direction: column; gap: 16px; }
+  .lib-item { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .lib-item img { width: 64px; height: 64px; border-radius: 4px; object-fit: cover; }
+  .lib-item.circle img { border-radius: 50%; }
+  .lib-item-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .lib-item-title { font-size: 16px; font-weight: 400; }
+  .lib-item-desc { font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+  .pin-icon { color: var(--green); font-size: 12px; }
 
   /* --- MOBILE MINI PLAYER --- */
   #mini-player {
     display: flex; align-items: center; justify-content: space-between;
-    margin: 0 8px 8px 8px; padding: 8px 12px; border-radius: 6px;
-    background: linear-gradient(90deg, rgba(255,255,255,0.1), transparent), var(--dynamic-color);
+    margin: 0 8px 8px 8px; padding: 8px; border-radius: 6px;
+    background: var(--dynamic-color);
     box-shadow: 0 4px 12px rgba(0,0,0,0.5); cursor: pointer; flex-shrink: 0; z-index: 20;
+    position: relative; overflow: hidden; transition: background 1s ease;
   }
-  .mini-player-left { display: flex; align-items: center; gap: 12px; flex: 1; overflow: hidden; }
-  .mini-album-art { width: 36px; height: 36px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  #mini-player::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(90deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 100%); z-index: 1; pointer-events: none;
+  }
+  .mini-player-left { display: flex; align-items: center; gap: 12px; flex: 1; overflow: hidden; z-index: 2; }
+  .mini-album-art { width: 40px; height: 40px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
   .mini-info { display: flex; flex-direction: column; overflow: hidden; white-space: nowrap; }
   .mini-title { font-size: 13px; font-weight: 600; text-overflow: ellipsis; overflow: hidden; }
-  .mini-artist { font-size: 11px; color: rgba(255,255,255,0.7); text-overflow: ellipsis; overflow: hidden; }
-  .mini-player-right { display: flex; align-items: center; gap: 16px; }
+  .mini-artist { font-size: 12px; color: rgba(255,255,255,0.7); text-overflow: ellipsis; overflow: hidden; }
+  .mini-player-right { display: flex; align-items: center; gap: 12px; z-index: 2; }
+  .mini-btn { background: none; border: none; color: #fff; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+  .mini-btn svg { width: 24px; height: 24px; fill: currentColor; }
   
-  /* Progress Bar underneath mini player */
-  .mini-progress-container { position: absolute; bottom: 0; left: 8px; right: 8px; height: 2px; background: rgba(255,255,255,0.2); border-radius: 0 0 6px 6px; overflow: hidden; }
+  .mini-progress-container { position: absolute; bottom: 0; left: 8px; right: 8px; height: 2px; background: rgba(255,255,255,0.3); border-radius: 0 0 6px 6px; overflow: hidden; z-index: 2; }
   .mini-progress-fill { height: 100%; background: #fff; width: 0%; transition: width 1s linear; }
 
   /* --- MOBILE FULL NOW PLAYING OVERLAY --- */
@@ -147,7 +196,7 @@
     position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000;
     background: linear-gradient(to bottom, var(--dynamic-color) 0%, var(--bg) 100%);
     display: flex; flex-direction: column; padding: 24px;
-    transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+    transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1), background 1s ease;
   }
   #mobile-now-playing.expanded { transform: translateY(0); }
   .np-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; margin-top: 16px; }
@@ -157,12 +206,8 @@
   .np-art-container { flex: 1; display: flex; align-items: center; justify-content: center; margin-bottom: 32px; }
   .np-art { 
     width: 100%; max-width: 340px; aspect-ratio: 1/1; object-fit: cover;
-    box-shadow: 0 16px 48px rgba(0,0,0,0.5); 
-    border-radius: 8px; /* Square by default */
-    transition: border-radius 0.3s;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5); border-radius: 8px; transition: border-radius 0.3s;
   }
-  
-  /* Vinyl Spin */
   .np-art.vinyl { border-radius: 50%; animation: spin 8s linear infinite; animation-play-state: paused; }
   .np-art.vinyl.playing { animation-play-state: running; }
   @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -170,22 +215,20 @@
   .np-info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
   .np-titles { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
   .np-title { font-size: 24px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
-  .np-artist { font-size: 16px; color: var(--text2); margin-top: 4px; }
+  .np-artist { font-size: 16px; color: rgba(255,255,255,0.7); margin-top: 4px; }
   
   .pill-container { height: 20px; margin-bottom: 12px; }
   .playlist-pill {
-    display: inline-flex; align-items: center; background: rgba(255,255,255,0.1);
+    display: inline-flex; align-items: center; background: rgba(255,255,255,0.2);
     padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; color: #fff; opacity: 0; transition: opacity 0.2s;
   }
   .playlist-pill.visible { opacity: 1; }
 
-  /* Progress Bar */
   .progress-container { margin-bottom: 24px; }
-  .progress-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; cursor: pointer; }
+  .progress-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden; cursor: pointer; }
   .progress-bar-fill { height: 100%; background: #fff; width: 0%; transition: width 1s linear; }
-  .progress-times { display: flex; justify-content: space-between; font-size: 11px; color: var(--text2); margin-top: 8px; }
+  .progress-times { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 8px; font-variant-numeric: tabular-nums; }
 
-  /* Controls */
   .controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
   .btn-icon { background: none; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .btn-icon:active { transform: scale(0.9); }
@@ -193,7 +236,6 @@
   .btn-play { width: 64px; height: 64px; background: #fff; color: #000; border-radius: 50%; }
   .btn-play svg { width: 28px; height: 28px; }
 
-  /* Heart Button */
   .heart-btn { width: 32px; height: 32px; }
   .heart-btn svg { width: 24px; height: 24px; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); fill: transparent; stroke: #fff; stroke-width: 1.5; }
   .heart-btn.active svg { fill: var(--green); stroke: var(--green); transform: scale(1.2); }
@@ -201,14 +243,12 @@
   /* --- DESKTOP PLAYBAR --- */
   #bottom-playbar {
     display: none; justify-content: space-between; align-items: center; padding: 0 16px;
-    background: linear-gradient(90deg, rgba(255,255,255,0.05), transparent), var(--surface);
-    border-radius: var(--radius-card); border-left: 4px solid var(--dynamic-color);
+    background: var(--surface); border-radius: var(--radius-card); 
   }
   .dt-left { display: flex; align-items: center; gap: 16px; width: 30%; }
   .dt-art { width: 56px; height: 56px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
   .dt-art.vinyl { border-radius: 50%; animation: spin 8s linear infinite; animation-play-state: paused; }
   .dt-art.vinyl.playing { animation-play-state: running; }
-
   .dt-center { display: flex; flex-direction: column; align-items: center; width: 40%; max-width: 600px; gap: 8px; }
   .dt-controls { display: flex; align-items: center; gap: 24px; }
   .dt-btn { background: none; border: none; color: var(--text2); cursor: pointer; }
@@ -217,11 +257,9 @@
   .dt-play { width: 32px; height: 32px; background: #fff; color: #000; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
   .dt-play:hover { transform: scale(1.05); }
   .dt-play svg { width: 16px; height: 16px; }
-  
-  .dt-progress-row { display: flex; align-items: center; width: 100%; gap: 8px; font-size: 11px; color: var(--text2); }
+  .dt-progress-row { display: flex; align-items: center; width: 100%; gap: 8px; font-size: 11px; color: var(--text2); font-variant-numeric: tabular-nums; }
   .dt-progress-bg { flex: 1; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
   .dt-progress-fill { height: 100%; background: #fff; width: 0%; border-radius: 2px; transition: width 1s linear; }
-  
   .dt-right { width: 30%; display: flex; justify-content: flex-end; align-items: center; gap: 16px; }
 
   /* --- BOTTOM NAV (MOBILE) --- */
@@ -230,12 +268,12 @@
     display: flex; justify-content: space-around; align-items: center;
     padding-bottom: env(safe-area-bottom); flex-shrink: 0; z-index: 10;
   }
-  .nav-item { background: none; border: none; color: var(--text2); display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; min-height: 44px; min-width: 60px; transition: transform 0.2s, opacity 0.2s; touch-action: manipulation; }
+  .nav-item { background: none; border: none; color: var(--text2); display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; min-height: 44px; min-width: 60px; transition: transform 0.2s, color 0.2s; touch-action: manipulation; }
   .nav-item:active { transform: scale(0.96); }
   .nav-item.active { color: var(--text); }
   .nav-item svg { fill: currentColor; width: 24px; height: 24px; }
   .nav-item.active svg.voice-icon { fill: var(--green); }
-  .nav-label { font-size: 11px; font-weight: 500; }
+  .nav-label { font-size: 10px; font-weight: 500; }
   .nav-item.active .voice-label { color: var(--green); }
 
 </style>
@@ -244,7 +282,6 @@
 
 <div id="app-container">
   
-  <!-- DESKTOP SIDEBAR -->
   <aside id="sidebar" class="desktop-only">
     <nav class="sidebar-nav">
       <button class="sidebar-item active" data-tab="home">
@@ -256,7 +293,7 @@
         <span>Search</span>
       </button>
       <button class="sidebar-item" data-tab="library">
-        <svg viewBox="0 0 24 24"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 5h-3v5.5c0 1.38-1.12 2.5-2.5 2.5S10 13.88 10 12.5s1.12-2.5 2.5-2.5c.57 0 1.08.19 1.5.51V5h4v2zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M14.5 2.134a.75.75 0 0 1 1 0l6 5.144c.2.17.315.418.315.686V21a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1-.75-.75v-5.5h-4v5.5a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 6 21v-3.766h2V20h3v-5.5a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75V20h3v-11.1l-5.25-4.5-5.25 4.5v1.27H6.5v-1.956c0-.268.114-.517.315-.686l6-5.144zM3 7.75v12.5a.75.75 0 0 1-1.5 0V7.75a.75.75 0 0 1 1.5 0z"/></svg>
         <span>Your Library</span>
       </button>
     </nav>
@@ -267,61 +304,145 @@
     </div>
   </aside>
 
-  <!-- MAIN CONTENT AREA -->
   <div id="main-area">
-    <header id="top-bar">
-      <div class="header-title" id="header-title">Good evening</div>
-      <div class="voice-indicator mobile-only"><div class="mobile-pulse-dot"></div></div>
-    </header>
-
+    
     <main id="content-area">
       <section id="view-home" class="view-section active">
-        <div class="placeholder-card"><span class="placeholder-emoji">🏠</span><h2>Home</h2><p class="placeholder-text">Your personalized feed and saved sessions will appear here in Phase 5.</p></div>
+        <div class="home-gradient"></div>
+        <div class="home-content">
+          <div class="home-header">
+            <h1 class="home-greeting">Good evening</h1>
+            <div class="home-header-icons">
+              <svg viewBox="0 0 24 24"><path d="M12 2c-1.657 0-3 1.343-3 3v7c0 1.657 1.343 3 3 3s3-1.343 3-3V5c0-1.657-1.343-3-3-3zM7 11.5a.5.5 0 0 0-1 0 6 6 0 0 0 12 0 .5.5 0 0 0-1 0 5 5 0 0 1-10 0zm4 7.402V21.5a.5.5 0 0 0 1 0v-2.598A7.004 7.004 0 0 0 18.5 11.5a.5.5 0 0 0-1 0 6 6 0 0 1-11 0 .5.5 0 0 0-1 0 7.004 7.004 0 0 0 6.5 7.402z"/></svg>
+            </div>
+          </div>
+          
+          <div class="home-grid">
+            <div class="home-grid-item" onclick="playSong(1)"><img src="https://picsum.photos/seed/blinding/300/300" alt=""><span>Blinding Lights</span></div>
+            <div class="home-grid-item" onclick="playSong(11)"><img src="https://picsum.photos/seed/taylor2/300/300" alt=""><span>Lover</span></div>
+            <div class="home-grid-item" onclick="playSong(6)"><img src="https://picsum.photos/seed/metro/300/300" alt=""><span>Heroes & Villains</span></div>
+            <div class="home-grid-item" onclick="playSong(12)"><img src="https://picsum.photos/seed/ed/300/300" alt=""><span>Divide</span></div>
+            <div class="home-grid-item" onclick="playSong(22)"><img src="https://picsum.photos/seed/lil/300/300" alt=""><span>INDUSTRY BABY</span></div>
+            <div class="home-grid-item" onclick="playSong(3)"><img src="https://picsum.photos/seed/joji/300/300" alt=""><span>Smithereens</span></div>
+          </div>
+          
+          <h2 class="home-shelf-title">Recently Played</h2>
+          <div class="home-shelf">
+            <div class="shelf-item" onclick="playSong(7)"><img src="https://picsum.photos/seed/taylor/300/300" alt=""><div class="shelf-item-title">Anti-Hero</div><div class="shelf-item-desc">Taylor Swift</div></div>
+            <div class="shelf-item" onclick="playSong(16)"><img src="https://picsum.photos/seed/olivia/300/300" alt=""><div class="shelf-item-title">good 4 u</div><div class="shelf-item-desc">Olivia Rodrigo</div></div>
+            <div class="shelf-item" onclick="playSong(20)"><img src="https://picsum.photos/seed/doja/300/300" alt=""><div class="shelf-item-title">Kiss Me More</div><div class="shelf-item-desc">Doja Cat</div></div>
+            <div class="shelf-item" onclick="playSong(13)"><img src="https://picsum.photos/seed/sun/300/300" alt=""><div class="shelf-item-title">Sunflower</div><div class="shelf-item-desc">Post Malone, Swae Lee</div></div>
+            <div class="shelf-item" onclick="playSong(4)"><img src="https://picsum.photos/seed/harry/300/300" alt=""><div class="shelf-item-title">As It Was</div><div class="shelf-item-desc">Harry Styles</div></div>
+          </div>
+          
+          <h2 class="home-shelf-title">Made For You</h2>
+          <div class="home-shelf">
+            <div class="shelf-item"><img src="https://picsum.photos/seed/d1/300/300" alt=""><div class="shelf-item-title">Daily Mix 1</div><div class="shelf-item-desc">The Weeknd, Post Malone, and more</div></div>
+            <div class="shelf-item"><img src="https://picsum.photos/seed/d2/300/300" alt=""><div class="shelf-item-title">Discover Weekly</div><div class="shelf-item-desc">New music updated every Monday</div></div>
+            <div class="shelf-item"><img src="https://picsum.photos/seed/d3/300/300" alt=""><div class="shelf-item-title">Release Radar</div><div class="shelf-item-desc">Catch up on the latest releases</div></div>
+          </div>
+        </div>
       </section>
+
       <section id="view-search" class="view-section">
-        <div class="placeholder-card"><span class="placeholder-emoji">🔍</span><h2>Search</h2><p class="placeholder-text">Discover new music and podcasts. (Not implemented in this prototype).</p></div>
+        <div style="padding: 24px; padding-top: 48px;">
+          <h1 style="font-size: 24px; font-weight: 700; margin-bottom: 24px;">Search</h1>
+          <div style="background: #fff; padding: 12px; border-radius: 4px; color: #000; font-weight: 600; display:flex; gap: 12px; align-items:center;">
+            <svg style="width:24px; height:24px; fill:#000" viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z"/></svg>
+            What do you want to listen to?
+          </div>
+        </div>
       </section>
+
       <section id="view-library" class="view-section">
-        <div class="placeholder-card"><span class="placeholder-emoji">📚</span><h2>Your Library</h2><p class="placeholder-text">Playlists and liked songs will appear here in Phase 3.</p></div>
+        <div class="lib-content">
+          <div class="lib-header">
+            <div class="lib-title-row">
+              <div class="lib-profile">T</div>
+              <h1 class="lib-title">Your Library</h1>
+            </div>
+            <svg style="width:24px;height:24px;fill:#fff" viewBox="0 0 24 24"><path d="M15.5 2.134a.75.75 0 0 1 1 0l6 5.144c.2.17.315.418.315.686V21a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1-.75-.75v-5.5h-4v5.5a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 6 21v-3.766h2V20h3v-5.5a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75V20h3v-11.1l-5.25-4.5-5.25 4.5v1.27H7.5v-1.956c0-.268.114-.517.315-.686l6-5.144zM4 7.75v12.5a.75.75 0 0 1-1.5 0V7.75a.75.75 0 0 1 1.5 0z"/></svg>
+          </div>
+          
+          <div class="lib-pills">
+            <div class="lib-pill">Playlists</div>
+            <div class="lib-pill">Artists</div>
+            <div class="lib-pill">Albums</div>
+            <div class="lib-pill">Podcasts & Shows</div>
+          </div>
+
+          <div class="lib-list">
+            <div class="lib-item">
+              <img src="https://misc.scdn.co/liked-songs/liked-songs-640.png" alt="Liked Songs">
+              <div class="lib-item-info">
+                <span class="lib-item-title">Liked Songs</span>
+                <span class="lib-item-desc"><span class="pin-icon">📌</span> Playlist • 108 songs</span>
+              </div>
+            </div>
+            <div class="lib-item circle">
+              <img src="https://picsum.photos/seed/taylor/300/300" alt="Artist">
+              <div class="lib-item-info">
+                <span class="lib-item-title">Taylor Swift</span>
+                <span class="lib-item-desc">Artist</span>
+              </div>
+            </div>
+            <div class="lib-item">
+              <img src="https://picsum.photos/seed/d1/300/300" alt="Playlist">
+              <div class="lib-item-info">
+                <span class="lib-item-title">Late Night Drives</span>
+                <span class="lib-item-desc">Playlist • You</span>
+              </div>
+            </div>
+            <div class="lib-item">
+              <img src="https://picsum.photos/seed/d2/300/300" alt="Playlist">
+              <div class="lib-item-info">
+                <span class="lib-item-title">Chill Vibes</span>
+                <span class="lib-item-desc">Playlist • Spotify</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
+
       <section id="view-voice" class="view-section">
-        <div class="placeholder-card"><span class="placeholder-emoji">🎙️</span><h2>Voice Save</h2><p class="placeholder-text">The voice engine and voice settings will live here in Phase 4.</p></div>
+        <div style="padding: 24px; padding-top: 48px; text-align: center;">
+          <h1 style="font-size: 24px; font-weight: 700; margin-bottom: 24px;">Voice Save Settings</h1>
+          <p style="color: var(--text2); line-height: 1.5;">This section is reserved for Phase 4 where we will build out the voice permissions, engine status, and toggle settings for the Voice Save intent parser.</p>
+        </div>
       </section>
     </main>
 
     <!-- MOBILE MINI PLAYER -->
     <div id="mini-player" class="mobile-only" onclick="toggleMobileNowPlaying()">
       <div class="mini-player-left">
-        <img class="mini-album-art dyn-art" src="" alt="Album Art">
+        <img class="mini-album-art dyn-art" src="" alt="">
         <div class="mini-info">
-          <span class="mini-title dyn-title">Song Title</span>
+          <span class="mini-title dyn-title">Title</span>
           <span class="mini-artist dyn-artist">Artist</span>
         </div>
       </div>
       <div class="mini-player-right">
-        <button class="btn-icon heart-btn dyn-heart" onclick="event.stopPropagation(); toggleHeart()">
+        <button class="mini-btn heart-btn dyn-heart" onclick="event.stopPropagation(); toggleHeart()">
           <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
         </button>
-        <button class="btn-icon dyn-playbtn" onclick="event.stopPropagation(); togglePlay()">
-          <!-- SVG injected by JS -->
-        </button>
+        <button class="mini-btn dyn-playbtn" onclick="event.stopPropagation(); togglePlay()"></button>
       </div>
       <div class="mini-progress-container"><div class="mini-progress-fill dyn-progress"></div></div>
     </div>
   </div>
 
-  <!-- MOBILE FULL NOW PLAYING OVERLAY -->
+  <!-- FULL NOW PLAYING OVERLAY (MOBILE) -->
   <div id="mobile-now-playing" class="mobile-only">
     <div class="np-header">
       <button onclick="toggleMobileNowPlaying()"><svg viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z" transform="rotate(-90 12 12)"/></svg></button>
-      <span style="font-size: 13px; font-weight: 700;">Now Playing</span>
-      <div style="width: 24px;"></div> <!-- spacer -->
+      <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;">Playing from playlist</span>
+      <div style="width: 24px;"></div>
     </div>
     
     <div class="np-art-container">
       <img class="np-art dyn-art vinyl" src="" alt="Album Art">
     </div>
-
+    
     <div class="pill-container">
       <span class="playlist-pill dyn-pill">In 2 playlists</span>
     </div>
@@ -353,7 +474,7 @@
     </div>
   </div>
 
-  <!-- MOBILE BOTTOM NAV -->
+  <!-- BOTTOM NAV (MOBILE) -->
   <nav id="bottom-nav" class="mobile-only">
     <button class="nav-item active" data-tab="home">
       <svg viewBox="0 0 24 24"><path d="M12.5 3.248a.75.75 0 0 0-1 0L4.25 8.941l-.25.21v11.1c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-5.5h4v5.5a.75.75 0 0 0 .75.75h4.5a.75.75 0 0 0 .75-.75v-11.1l-.25-.21-7.25-5.693Z"/></svg>
@@ -364,7 +485,7 @@
       <span class="nav-label">Search</span>
     </button>
     <button class="nav-item" data-tab="library">
-      <svg viewBox="0 0 24 24"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 5h-3v5.5c0 1.38-1.12 2.5-2.5 2.5S10 13.88 10 12.5s1.12-2.5 2.5-2.5c.57 0 1.08.19 1.5.51V5h4v2zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6z"/></svg>
+      <svg viewBox="0 0 24 24"><path d="M14.5 2.134a.75.75 0 0 1 1 0l6 5.144c.2.17.315.418.315.686V21a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1-.75-.75v-5.5h-4v5.5a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 6 21v-3.766h2V20h3v-5.5a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75V20h3v-11.1l-5.25-4.5-5.25 4.5v1.27H6.5v-1.956c0-.268.114-.517.315-.686l6-5.144zM3 7.75v12.5a.75.75 0 0 1-1.5 0V7.75a.75.75 0 0 1 1.5 0z"/></svg>
       <span class="nav-label">Your Library</span>
     </button>
     <button class="nav-item" data-tab="voice">
@@ -373,7 +494,7 @@
     </button>
   </nav>
 
-  <!-- DESKTOP BOTTOM PLAYBAR -->
+  <!-- DESKTOP PLAYBAR -->
   <div id="bottom-playbar" class="desktop-only">
     <div class="dt-left">
       <img class="dt-art dyn-art vinyl" src="" alt="">
@@ -385,7 +506,6 @@
         <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
       </button>
     </div>
-    
     <div class="dt-center">
       <div class="dt-controls">
         <button class="dt-btn"><svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg></button>
@@ -400,9 +520,7 @@
         <span class="dyn-time-total">0:00</span>
       </div>
     </div>
-    
     <div class="dt-right">
-       <!-- Volume control mockup -->
        <svg style="width:16px;height:16px;fill:var(--text2)" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
        <div style="width:80px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;"><div style="width:70%;height:100%;background:#fff;border-radius:2px;"></div></div>
     </div>
@@ -411,16 +529,36 @@
 </div>
 
 <script>
-  // DEFAULT STATE
+  // 25 SONGS DATABASE
   const DEFAULT_STATE = {
     activeTab: 'home',
     nowPlayingExpanded: false,
     songs: [
-      {id:1, title:"Blinding Lights", artist:"The Weeknd", album:"After Hours", duration:200, cover:"https://picsum.photos/seed/bl/300/300", energy:"high", mood:"euphoric", genre:"synthpop", color:"#b02a2a"},
-      {id:2, title:"Levitating", artist:"Dua Lipa", album:"Future Nostalgia", duration:203, cover:"https://picsum.photos/seed/lev/300/300", energy:"high", mood:"happy", genre:"pop", color:"#a832a8"},
-      {id:3, title:"Tum Se Hi", artist:"Mohit Chauhan", album:"Jab We Met", duration:312, cover:"https://picsum.photos/seed/tsh/300/300", energy:"low", mood:"romantic", genre:"bollywood", color:"#326da8"},
-      {id:4, title:"Falani", artist:"Masoom Sharma", album:"Haryanvi Hits", duration:224, cover:"https://picsum.photos/seed/fal/300/300", energy:"high", mood:"energetic", genre:"haryanvi", color:"#a86d32"},
-      {id:5, title:"Glimpse of Us", artist:"Joji", album:"Smithereens", duration:234, cover:"https://picsum.photos/seed/gou/300/300", energy:"low", mood:"melancholic", genre:"indie", color:"#222222"}
+      {id:1, title:"Blinding Lights", artist:"The Weeknd", album:"After Hours", duration:200, cover:"https://picsum.photos/seed/blinding/300/300", color:"#b02a2a"},
+      {id:2, title:"Levitating", artist:"Dua Lipa", album:"Future Nostalgia", duration:203, cover:"https://picsum.photos/seed/dua/300/300", color:"#a832a8"},
+      {id:3, title:"Glimpse of Us", artist:"Joji", album:"Smithereens", duration:234, cover:"https://picsum.photos/seed/joji/300/300", color:"#222222"},
+      {id:4, title:"As It Was", artist:"Harry Styles", album:"Harry's House", duration:167, cover:"https://picsum.photos/seed/harry/300/300", color:"#8c512a"},
+      {id:5, title:"Kill Bill", artist:"SZA", album:"SOS", duration:153, cover:"https://picsum.photos/seed/sza/300/300", color:"#1a4361"},
+      {id:6, title:"Creepin'", artist:"Metro Boomin", album:"Heroes & Villains", duration:221, cover:"https://picsum.photos/seed/metro/300/300", color:"#611a1a"},
+      {id:7, title:"Anti-Hero", artist:"Taylor Swift", album:"Midnights", duration:200, cover:"https://picsum.photos/seed/taylor/300/300", color:"#43346b"},
+      {id:8, title:"Pink + White", artist:"Frank Ocean", album:"Blonde", duration:184, cover:"https://picsum.photos/seed/frank/300/300", color:"#6b6734"},
+      {id:9, title:"Cruel Summer", artist:"Taylor Swift", album:"Lover", duration:178, cover:"https://picsum.photos/seed/taylor2/300/300", color:"#8a2364"},
+      {id:10, title:"Starboy", artist:"The Weeknd", album:"Starboy", duration:230, cover:"https://picsum.photos/seed/starboy/300/300", color:"#141738"},
+      {id:11, title:"Lover", artist:"Taylor Swift", album:"Lover", duration:221, cover:"https://picsum.photos/seed/lover/300/300", color:"#8a2364"},
+      {id:12, title:"Shape of You", artist:"Ed Sheeran", album:"Divide", duration:233, cover:"https://picsum.photos/seed/ed/300/300", color:"#22567d"},
+      {id:13, title:"Sunflower", artist:"Post Malone", album:"Spider-Man", duration:158, cover:"https://picsum.photos/seed/sun/300/300", color:"#7a7d22"},
+      {id:14, title:"Sweater Weather", artist:"The Neighbourhood", album:"I Love You.", duration:240, cover:"https://picsum.photos/seed/sweater/300/300", color:"#363636"},
+      {id:15, title:"Save Your Tears", artist:"The Weeknd", album:"After Hours", duration:215, cover:"https://picsum.photos/seed/save/300/300", color:"#b02a2a"},
+      {id:16, title:"good 4 u", artist:"Olivia Rodrigo", album:"SOUR", duration:178, cover:"https://picsum.photos/seed/olivia/300/300", color:"#5b3678"},
+      {id:17, title:"Heat Waves", artist:"Glass Animals", album:"Dreamland", duration:238, cover:"https://picsum.photos/seed/heat/300/300", color:"#783636"},
+      {id:18, title:"Peaches", artist:"Justin Bieber", album:"Justice", duration:198, cover:"https://picsum.photos/seed/peaches/300/300", color:"#6f7a36"},
+      {id:19, title:"Watermelon Sugar", artist:"Harry Styles", album:"Fine Line", duration:174, cover:"https://picsum.photos/seed/water/300/300", color:"#7a365b"},
+      {id:20, title:"Kiss Me More", artist:"Doja Cat", album:"Planet Her", duration:208, cover:"https://picsum.photos/seed/doja/300/300", color:"#753245"},
+      {id:21, title:"Stay", artist:"The Kid LAROI", album:"F*CK LOVE", duration:141, cover:"https://picsum.photos/seed/stay/300/300", color:"#222222"},
+      {id:22, title:"INDUSTRY BABY", artist:"Lil Nas X", album:"MONTERO", duration:212, cover:"https://picsum.photos/seed/lil/300/300", color:"#6e1531"},
+      {id:23, title:"Bad Habit", artist:"Steve Lacy", album:"Gemini Rights", duration:232, cover:"https://picsum.photos/seed/steve/300/300", color:"#595821"},
+      {id:24, title:"golden hour", artist:"JVKE", album:"this is what...", duration:209, cover:"https://picsum.photos/seed/jvke/300/300", color:"#594721"},
+      {id:25, title:"Vampire", artist:"Olivia Rodrigo", album:"GUTS", duration:219, cover:"https://picsum.photos/seed/guts/300/300", color:"#261536"}
     ],
     playlists: [
       {id:"p1", name:"Late Night Drives", songIds:[]},
@@ -428,54 +566,39 @@
       {id:"p3", name:"Discover Mix", songIds:[2]},
       {id:"p4", name:"Study Mode", songIds:[]}
     ],
-    likedSongs: [2], likedSongTimestamps: {}, currentSongId: 1, previousSongId: null, previousPreviousSongId: null,
-    playHistory: [], playing: true, progress: 0, shuffleActive: false, repeatActive: false, volume: 70, sleepTimerEnd: null,
-    tasteProfile: {genres:{}, moods:{}, artists:{}, totalSaves:0}, sessionSignals: [], discoveryFeed: [], lastSavedSongId: null,
-    lastAction: null, lastActionTimestamp: null, voiceFeedbackEnabled: true, unknownCommandCount: 0, lastUnknownCommandTimestamp: null, proactiveNudgeShown: false
+    likedSongs: [2], currentSongId: 1, previousSongId: null, playHistory: [], playing: true, progress: 0, volume: 70
   };
 
   const STORAGE_KEY = 'spotify_voice_save_state';
   let _rawState = {};
   let progressInterval = null;
 
-  // INITIALIZATION
   function loadState() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        _rawState = { ...DEFAULT_STATE, ...parsed };
-        _rawState.sessionSignals = [];
-        _rawState.proactiveNudgeShown = false;
-        _rawState.nowPlayingExpanded = false; // reset UI state
-      } else {
-        _rawState = { ...DEFAULT_STATE };
-      }
-    } catch (e) {
-      _rawState = { ...DEFAULT_STATE };
-    }
+        _rawState = { ...DEFAULT_STATE, ...JSON.parse(stored) };
+        _rawState.nowPlayingExpanded = false; 
+      } else { _rawState = { ...DEFAULT_STATE }; }
+    } catch (e) { _rawState = { ...DEFAULT_STATE }; }
   }
 
-  // PERSISTENCE
   let saveTimeout = null;
   function saveState() {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
       try {
         const toSave = { ..._rawState };
-        delete toSave.sessionSignals;
-        delete toSave.proactiveNudgeShown;
         delete toSave.nowPlayingExpanded;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
       } catch(e) {}
     }, 100);
   }
 
-  // REACTIVE PROXY
   const proxyHandler = {
     set(target, property, value) {
       target[property] = value;
-      if (property !== 'progress') saveState(); // Don't thrash localstorage every second
+      if (property !== 'progress') saveState(); 
       render(property);
       return true;
     }
@@ -484,34 +607,27 @@
   loadState();
   const STATE = new Proxy(_rawState, proxyHandler);
 
-  // HELPERS
-  function formatTime(seconds) {
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  }
+  function formatTime(s) { const m=Math.floor(s/60); const sc=Math.floor(s%60); return `${m}:${sc<10?'0':''}${sc}`; }
+  function getSong(id) { return STATE.songs.find(s => s.id === id) || STATE.songs[0]; }
+  function getPlaylistsForSong(id) { return STATE.playlists.filter(p => p.songIds.includes(id)); }
 
-  function getSong(id) {
-    return STATE.songs.find(s => s.id === id) || STATE.songs[0];
-  }
-  
-  function getPlaylistsForSong(id) {
-    return STATE.playlists.filter(p => p.songIds.includes(id));
-  }
-
-  // TRANSPORT LOGIC
   function togglePlay() { STATE.playing = !STATE.playing; }
   function toggleMobileNowPlaying() { STATE.nowPlayingExpanded = !STATE.nowPlayingExpanded; }
   
+  function playSong(id) {
+    STATE.previousSongId = STATE.currentSongId;
+    _rawState.currentSongId = id;
+    _rawState.progress = 0;
+    _rawState.playing = true;
+    saveState();
+    render('songChange');
+  }
+
   function playNext() {
-    STATE.previousPreviousSongId = STATE.previousSongId;
     STATE.previousSongId = STATE.currentSongId;
     STATE.playHistory.push(STATE.currentSongId);
-    
     const currentIndex = STATE.songs.findIndex(s => s.id === STATE.currentSongId);
     const nextIndex = (currentIndex + 1) % STATE.songs.length;
-    
-    // Batch update via raw object to prevent multiple renders, then trigger one render manually
     _rawState.currentSongId = STATE.songs[nextIndex].id;
     _rawState.progress = 0;
     saveState();
@@ -534,30 +650,21 @@
   function toggleHeart() {
     const id = STATE.currentSongId;
     const isLiked = STATE.likedSongs.includes(id);
-    if (isLiked) {
-      STATE.likedSongs = STATE.likedSongs.filter(sid => sid !== id);
-    } else {
-      STATE.likedSongs = [...STATE.likedSongs, id];
-    }
+    if (isLiked) STATE.likedSongs = STATE.likedSongs.filter(sid => sid !== id);
+    else STATE.likedSongs = [...STATE.likedSongs, id];
   }
 
-  // TIMER LOOP
   function startEngine() {
     if (progressInterval) clearInterval(progressInterval);
     progressInterval = setInterval(() => {
       if (STATE.playing) {
         const song = getSong(STATE.currentSongId);
-        if (STATE.progress >= song.duration) {
-          playNext();
-        } else {
-          STATE.progress++;
-        }
+        if (STATE.progress >= song.duration) playNext();
+        else STATE.progress++;
       }
     }, 1000);
   }
 
-  // RENDER LOGIC
-  // We pass changedProp to optimize updates (e.g. only update progress bar if only progress changed)
   function render(changedProp) {
     const song = getSong(STATE.currentSongId);
     const isLiked = STATE.likedSongs.includes(song.id);
@@ -565,7 +672,6 @@
       `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>` : 
       `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
       
-    // 1. FAST PATH: Only progress changed
     if (changedProp === 'progress') {
       const pct = (STATE.progress / song.duration) * 100 + '%';
       document.querySelectorAll('.dyn-progress').forEach(el => el.style.width = pct);
@@ -573,11 +679,7 @@
       return;
     }
 
-    // 2. FULL RENDER
-    // Dynamic Color
     document.documentElement.style.setProperty('--dynamic-color', song.color);
-
-    // Text & Art
     document.querySelectorAll('.dyn-title').forEach(el => el.textContent = song.title);
     document.querySelectorAll('.dyn-artist').forEach(el => el.textContent = song.artist);
     document.querySelectorAll('.dyn-time-total').forEach(el => el.textContent = formatTime(song.duration));
@@ -586,18 +688,13 @@
       el.classList.toggle('playing', STATE.playing);
     });
 
-    // Progress Bar Reset
     const pct = (STATE.progress / song.duration) * 100 + '%';
     document.querySelectorAll('.dyn-progress').forEach(el => el.style.width = pct);
     document.querySelectorAll('.dyn-time-curr').forEach(el => el.textContent = formatTime(STATE.progress));
 
-    // Controls
     document.querySelectorAll('.dyn-playbtn').forEach(el => el.innerHTML = playSvg);
-    document.querySelectorAll('.dyn-heart').forEach(el => {
-      el.classList.toggle('active', isLiked);
-    });
+    document.querySelectorAll('.dyn-heart').forEach(el => { el.classList.toggle('active', isLiked); });
 
-    // Pill
     const pill = document.querySelector('.dyn-pill');
     const inPlaylists = getPlaylistsForSong(song.id);
     if (inPlaylists.length > 0) {
@@ -607,25 +704,14 @@
       pill.classList.remove('visible');
     }
 
-    // Mobile Now Playing Overlay
     const npOverlay = document.getElementById('mobile-now-playing');
-    if (npOverlay) {
-      npOverlay.classList.toggle('expanded', STATE.nowPlayingExpanded);
-    }
+    if (npOverlay) npOverlay.classList.toggle('expanded', STATE.nowPlayingExpanded);
 
-    // Tabs / Views
     const tab = STATE.activeTab || 'home';
     document.querySelectorAll('.view-section').forEach(el => el.classList.toggle('active', el.id === 'view-' + tab));
     document.querySelectorAll('[data-tab]').forEach(el => el.classList.toggle('active', el.getAttribute('data-tab') === tab));
-    
-    const headerTitle = document.getElementById('header-title');
-    if (tab === 'home') headerTitle.textContent = 'Good evening';
-    else if (tab === 'search') headerTitle.textContent = 'Search';
-    else if (tab === 'library') headerTitle.textContent = 'Your Library';
-    else if (tab === 'voice') headerTitle.textContent = 'Voice Settings';
   }
 
-  // INIT
   document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-tab]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -637,7 +723,6 @@
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-      else if (e.code === 'KeyM') { STATE.volume = STATE.volume > 0 ? 0 : 70; }
       else if (e.code === 'ArrowRight') { e.preventDefault(); playNext(); }
       else if (e.code === 'ArrowLeft') { e.preventDefault(); playPrev(); }
     });
