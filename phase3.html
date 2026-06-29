@@ -706,11 +706,21 @@
   function getPlaylistsForSong(id) { return STATE.playlists.filter(p => p.songIds.includes(id)); }
 
   function togglePlay() { 
-    STATE.playing = !STATE.playing; 
     if (STATE.playing) {
-      audioPlayer.play().catch(e => console.log('Audio play failed:', e));
-    } else {
+      STATE.playing = false;
       audioPlayer.pause();
+    } else {
+      STATE.playing = true;
+      if (!audioPlayer.src || audioPlayer.src === window.location.href) {
+        const song = getSong(STATE.currentSongId);
+        fetchPreviewUrl(song).then(url => {
+          audioPlayer.src = url;
+          audioPlayer.currentTime = STATE.progress;
+          audioPlayer.play().catch(e => { STATE.playing = false; });
+        });
+      } else {
+        audioPlayer.play().catch(e => { STATE.playing = false; });
+      }
     }
   }
   function toggleMobileNowPlaying() { STATE.nowPlayingExpanded = !STATE.nowPlayingExpanded; }
@@ -738,7 +748,6 @@
     
     // Pause current
     audioPlayer.pause();
-    audioPlayer.src = "";
     saveState();
     render('songChange');
     
@@ -746,7 +755,7 @@
     const song = getSong(id);
     const previewUrl = await fetchPreviewUrl(song);
     audioPlayer.src = previewUrl;
-    audioPlayer.play().catch(e => console.log('Autoplay prevented:', e));
+    audioPlayer.play().catch(e => { STATE.playing = false; });
   }
 
   function playNext() {
@@ -816,14 +825,18 @@
     });
 
     // Handle initial state if playing from reload
-    if (STATE.playing) {
-      const song = getSong(STATE.currentSongId);
-      fetchPreviewUrl(song).then(url => {
-        audioPlayer.src = url;
-        audioPlayer.currentTime = STATE.progress;
-        audioPlayer.play().catch(e => console.log('Autoplay prevented on load', e));
-      });
-    }
+    const song = getSong(STATE.currentSongId);
+    fetchPreviewUrl(song).then(url => {
+      audioPlayer.src = url;
+      audioPlayer.currentTime = STATE.progress;
+      if (STATE.playing) {
+        audioPlayer.play().catch(e => { 
+          console.log('Autoplay prevented on load'); 
+          STATE.playing = false; 
+          render('songChange');
+        });
+      }
+    });
 
     if (libraryTimeInterval) clearInterval(libraryTimeInterval);
     libraryTimeInterval = setInterval(() => {
