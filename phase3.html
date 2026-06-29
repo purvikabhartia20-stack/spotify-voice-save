@@ -274,6 +274,7 @@
   .btn-icon:active { transform: scale(0.9); }
   .btn-icon svg { width: 24px; height: 24px; fill: currentColor; }
   .btn-play { width: 64px; height: 64px; background: #fff; color: #000; border-radius: 50%; }
+  .btn-play:hover { color: #000; }
   .btn-play svg { width: 28px; height: 28px; }
 
   .heart-btn { width: 32px; height: 32px; }
@@ -295,7 +296,7 @@
   .dt-btn:hover { color: #fff; }
   .dt-btn svg { width: 16px; height: 16px; fill: currentColor; }
   .dt-play { width: 32px; height: 32px; background: #fff; color: #000; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
-  .dt-play:hover { transform: scale(1.05); }
+  .dt-play:hover { transform: scale(1.05); color: #000; }
   .dt-play svg { width: 16px; height: 16px; }
   .dt-progress-row { display: flex; align-items: center; width: 100%; gap: 8px; font-size: 11px; color: var(--text2); font-variant-numeric: tabular-nums; }
   .dt-progress-bg { flex: 1; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
@@ -562,7 +563,7 @@
       <span class="nav-label">Search</span>
     </button>
     <button class="nav-item" data-tab="library">
-      <svg viewBox="0 0 24 24"><path d="M14.5 2.134a.75.75 0 0 1 1 0l6 5.144c.2.17.315.418.315.686V21a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1-.75-.75v-5.5h-4v5.5a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 6 21v-3.766h2V20h3v-5.5a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75V20h3v-11.1l-5.25-4.5-5.25 4.5v1.27H6.5v-1.956c0-.268.114-.517.315-.686l6-5.144zM3 7.75v12.5a.75.75 0 0 1-1.5 0V7.75a.75.75 0 0 1 1.5 0z"/></svg>
+      <svg viewBox="0 0 24 24"><path d="M3 22a1 1 0 0 1-1-1V3a1 1 0 0 1 2 0v18a1 1 0 0 1-1 1zM15.5 2.134a.75.75 0 0 1 1 0l6 5.144c.2.17.315.418.315.686V21a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1-.75-.75v-5.5h-4v5.5a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 6 21v-3.766h2V20h3v-5.5a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75V20h3v-11.1l-5.25-4.5-5.25 4.5v1.27H7.5v-1.956c0-.268.114-.517.315-.686l6-5.144zM4 7.75v12.5a.75.75 0 0 1-1.5 0V7.75a.75.75 0 0 1 1.5 0z"/></svg>
       <span class="nav-label">Your Library</span>
     </button>
     <button class="nav-item" data-tab="voice">
@@ -613,31 +614,31 @@
     nowPlayingExpanded: false,
     likedExpanded: true,
     songs: [
-      {id:1, title:"Blinding Lights", artist:"The Weeknd", album:"After Hours", duration:200, cover:"https://picsum.photos/seed/blinding/300/300", color:"#b02a2a"},
-      {id:2, title:"Levitating", artist:"Dua Lipa", album:"Future Nostalgia", duration:203, cover:"https://picsum.photos/seed/dua/300/300", color:"#a832a8"},
-      {id:3, title:"Glimpse of Us", artist:"Joji", album:"Smithereens", duration:234, cover:"https://picsum.photos/seed/joji/300/300", color:"#222222"},
-      {id:4, title:"As It Was", artist:"Harry Styles", album:"Harry's House", duration:167, cover:"https://picsum.photos/seed/harry/300/300", color:"#8c512a"},
-      {id:5, title:"Kill Bill", artist:"SZA", album:"SOS", duration:153, cover:"https://picsum.photos/seed/sza/300/300", color:"#1a4361"},
-      {id:6, title:"Creepin'", artist:"Metro Boomin", album:"Heroes & Villains", duration:221, cover:"https://picsum.photos/seed/metro/300/300", color:"#611a1a"},
-      {id:7, title:"Anti-Hero", artist:"Taylor Swift", album:"Midnights", duration:200, cover:"https://picsum.photos/seed/taylor/300/300", color:"#43346b"},
-      {id:8, title:"Pink + White", artist:"Frank Ocean", album:"Blonde", duration:184, cover:"https://picsum.photos/seed/frank/300/300", color:"#6b6734"},
-      {id:9, title:"Cruel Summer", artist:"Taylor Swift", album:"Lover", duration:178, cover:"https://picsum.photos/seed/taylor2/300/300", color:"#8a2364"},
-      {id:10, title:"Starboy", artist:"The Weeknd", album:"Starboy", duration:230, cover:"https://picsum.photos/seed/starboy/300/300", color:"#141738"},
-      {id:11, title:"Lover", artist:"Taylor Swift", album:"Lover", duration:221, cover:"https://picsum.photos/seed/lover/300/300", color:"#8a2364"},
-      {id:12, title:"Shape of You", artist:"Ed Sheeran", album:"Divide", duration:233, cover:"https://picsum.photos/seed/ed/300/300", color:"#22567d"},
-      {id:13, title:"Sunflower", artist:"Post Malone", album:"Spider-Man", duration:158, cover:"https://picsum.photos/seed/sun/300/300", color:"#7a7d22"},
-      {id:14, title:"Sweater Weather", artist:"The Neighbourhood", album:"I Love You.", duration:240, cover:"https://picsum.photos/seed/sweater/300/300", color:"#363636"},
-      {id:15, title:"Save Your Tears", artist:"The Weeknd", album:"After Hours", duration:215, cover:"https://picsum.photos/seed/save/300/300", color:"#b02a2a"},
-      {id:16, title:"good 4 u", artist:"Olivia Rodrigo", album:"SOUR", duration:178, cover:"https://picsum.photos/seed/olivia/300/300", color:"#5b3678"},
-      {id:17, title:"Heat Waves", artist:"Glass Animals", album:"Dreamland", duration:238, cover:"https://picsum.photos/seed/heat/300/300", color:"#783636"},
-      {id:18, title:"Peaches", artist:"Justin Bieber", album:"Justice", duration:198, cover:"https://picsum.photos/seed/peaches/300/300", color:"#6f7a36"},
-      {id:19, title:"Watermelon Sugar", artist:"Harry Styles", album:"Fine Line", duration:174, cover:"https://picsum.photos/seed/water/300/300", color:"#7a365b"},
-      {id:20, title:"Kiss Me More", artist:"Doja Cat", album:"Planet Her", duration:208, cover:"https://picsum.photos/seed/doja/300/300", color:"#753245"},
-      {id:21, title:"Stay", artist:"The Kid LAROI", album:"F*CK LOVE", duration:141, cover:"https://picsum.photos/seed/stay/300/300", color:"#222222"},
-      {id:22, title:"INDUSTRY BABY", artist:"Lil Nas X", album:"MONTERO", duration:212, cover:"https://picsum.photos/seed/lil/300/300", color:"#6e1531"},
-      {id:23, title:"Bad Habit", artist:"Steve Lacy", album:"Gemini Rights", duration:232, cover:"https://picsum.photos/seed/steve/300/300", color:"#595821"},
-      {id:24, title:"golden hour", artist:"JVKE", album:"this is what...", duration:209, cover:"https://picsum.photos/seed/jvke/300/300", color:"#594721"},
-      {id:25, title:"Vampire", artist:"Olivia Rodrigo", album:"GUTS", duration:219, cover:"https://picsum.photos/seed/guts/300/300", color:"#261536"}
+      {id:1, title:"Blinding Lights", artist:"The Weeknd", album:"After Hours", duration:200, cover:"https://i.scdn.co/image/ab67616d0000b2738863bc11d2aa12b54f5aeb36", color:"#b02a2a"},
+      {id:2, title:"Levitating", artist:"Dua Lipa", album:"Future Nostalgia", duration:203, cover:"https://i.scdn.co/image/ab67616d0000b273bd22eea89b09ad3c784bebf6", color:"#a832a8"},
+      {id:3, title:"Glimpse of Us", artist:"Joji", album:"Smithereens", duration:234, cover:"https://i.scdn.co/image/ab67616d0000b273b4010b50302b1f81df6f8820", color:"#222222"},
+      {id:4, title:"As It Was", artist:"Harry Styles", album:"Harry's House", duration:167, cover:"https://i.scdn.co/image/ab67616d0000b2732e8f592205abd73d9d300e84", color:"#8c512a"},
+      {id:5, title:"Kill Bill", artist:"SZA", album:"SOS", duration:153, cover:"https://i.scdn.co/image/ab67616d0000b27370dbc9f47669d120ad874ec1", color:"#1a4361"},
+      {id:6, title:"Creepin'", artist:"Metro Boomin", album:"Heroes & Villains", duration:221, cover:"https://i.scdn.co/image/ab67616d0000b27302816358ba1ea80b06b6b5e1", color:"#611a1a"},
+      {id:7, title:"Anti-Hero", artist:"Taylor Swift", album:"Midnights", duration:200, cover:"https://i.scdn.co/image/ab67616d0000b273bb54dde1edce1f2513467c69", color:"#43346b"},
+      {id:8, title:"Pink + White", artist:"Frank Ocean", album:"Blonde", duration:184, cover:"https://i.scdn.co/image/ab67616d0000b273c5649add07ed3720be9d5526", color:"#6b6734"},
+      {id:9, title:"Cruel Summer", artist:"Taylor Swift", album:"Lover", duration:178, cover:"https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a396a61647", color:"#8a2364"},
+      {id:10, title:"Starboy", artist:"The Weeknd", album:"Starboy", duration:230, cover:"https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452", color:"#141738"},
+      {id:11, title:"Lover", artist:"Taylor Swift", album:"Lover", duration:221, cover:"https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a396a61647", color:"#8a2364"},
+      {id:12, title:"Shape of You", artist:"Ed Sheeran", album:"Divide", duration:233, cover:"https://i.scdn.co/image/ab67616d0000b273ba5db46f4b838ef60b8b86d1", color:"#22567d"},
+      {id:13, title:"Sunflower", artist:"Post Malone", album:"Spider-Man", duration:158, cover:"https://i.scdn.co/image/ab67616d0000b273e2e352d89826aef6dbd5ff8f", color:"#7a7d22"},
+      {id:14, title:"Sweater Weather", artist:"The Neighbourhood", album:"I Love You.", duration:240, cover:"https://i.scdn.co/image/ab67616d0000b2733d0694158448ebf580ca02b6", color:"#363636"},
+      {id:15, title:"Save Your Tears", artist:"The Weeknd", album:"After Hours", duration:215, cover:"https://i.scdn.co/image/ab67616d0000b2738863bc11d2aa12b54f5aeb36", color:"#b02a2a"},
+      {id:16, title:"good 4 u", artist:"Olivia Rodrigo", album:"SOUR", duration:178, cover:"https://i.scdn.co/image/ab67616d0000b273a91c10fe9472d9bd89802e5a", color:"#5b3678"},
+      {id:17, title:"Heat Waves", artist:"Glass Animals", album:"Dreamland", duration:238, cover:"https://i.scdn.co/image/ab67616d0000b27341e3d93700021c17da7e64cd", color:"#783636"},
+      {id:18, title:"Peaches", artist:"Justin Bieber", album:"Justice", duration:198, cover:"https://i.scdn.co/image/ab67616d0000b273e286c12360f089693ffcdb59", color:"#6f7a36"},
+      {id:19, title:"Watermelon Sugar", artist:"Harry Styles", album:"Fine Line", duration:174, cover:"https://i.scdn.co/image/ab67616d0000b27377fdcf27c005eb738f654b48", color:"#7a365b"},
+      {id:20, title:"Kiss Me More", artist:"Doja Cat", album:"Planet Her", duration:208, cover:"https://i.scdn.co/image/ab67616d0000b273390c58a5be7164ff896568db", color:"#753245"},
+      {id:21, title:"Stay", artist:"The Kid LAROI", album:"F*CK LOVE", duration:141, cover:"https://i.scdn.co/image/ab67616d0000b2739be19003504ad09a90ffb05c", color:"#222222"},
+      {id:22, title:"INDUSTRY BABY", artist:"Lil Nas X", album:"MONTERO", duration:212, cover:"https://i.scdn.co/image/ab67616d0000b27318ec8338f07fb7733deac061", color:"#6e1531"},
+      {id:23, title:"Bad Habit", artist:"Steve Lacy", album:"Gemini Rights", duration:232, cover:"https://i.scdn.co/image/ab67616d0000b273eaebcf7d0046b2837bc28585", color:"#595821"},
+      {id:24, title:"golden hour", artist:"JVKE", album:"this is what...", duration:209, cover:"https://i.scdn.co/image/ab67616d0000b273c88684bb6f8df73a7d4d42ec", color:"#594721"},
+      {id:25, title:"Vampire", artist:"Olivia Rodrigo", album:"GUTS", duration:219, cover:"https://i.scdn.co/image/ab67616d0000b273e85259a1cae29a8d95f20814", color:"#261536"}
     ],
     playlists: [
       {id:"p1", name:"Discover Weekly", cover:"https://i.scdn.co/image/ab67706f00000003c21a416bdf672b1bb92a95c9", songIds:[1, 15, 22], expanded: true},
