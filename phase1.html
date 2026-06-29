@@ -7,121 +7,183 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #121212;
-    --surface: #1a1a1a;
+    --bg: #000000;
+    --surface: #121212;
     --surface2: #242424;
     --surface3: #2a2a2a;
     --green: #1DB954;
     --green-dim: rgba(29,185,84,0.15);
-    --red: #e74c3c;
-    --red-dim: rgba(231,76,60,0.15);
-    --amber: #f59e0b;
-    --amber-dim: rgba(245,158,11,0.15);
-    --blue: #3b82f6;
     --text: #ffffff;
     --text2: #b3b3b3;
     --text3: #535353;
-    --radius-card: 12px;
-    --radius-pill: 20px;
-    --radius-sm: 6px;
+    --radius-card: 8px;
     --nav-height: 64px;
-    --topbar-height: 56px;
-    --voice-bar-height: 52px;
-    --phone-width: 390px;
-    --phone-height: 844px;
+    --playbar-height: 90px;
+    --sidebar-width: 250px;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   
   body {
-    background-color: #000;
+    background-color: var(--bg);
     font-family: 'Inter', sans-serif;
     color: var(--text);
-    display: flex;
-    justify-content: center;
-    align-items: center;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
-    padding: 20px 0;
-  }
-
-  /* Desktop Bezel */
-  #device-bezel {
-    position: relative;
-    width: var(--phone-width);
-    height: 100%;
-    max-height: var(--phone-height);
-    background: var(--bg);
-    border-radius: 40px;
-    box-shadow: 0 0 0 10px #222, 0 20px 40px rgba(0,0,0,0.5);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* Notch */
-  #device-bezel::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 120px;
-    height: 25px;
-    background: #222;
-    border-bottom-left-radius: 16px;
-    border-bottom-right-radius: 16px;
-    z-index: 100;
-  }
-
-  /* Responsive for mobile */
-  @media (max-width: 450px) {
-    body { background-color: var(--bg); display: block; overflow: auto; padding: 0; }
-    #device-bezel {
-      width: 100%;
-      height: 100dvh;
-      max-height: none;
-      border-radius: 0;
-      box-shadow: none;
-    }
-    #device-bezel::before { display: none; }
   }
 
   #app-container {
-    flex: 1;
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
+  }
+
+  /* --- DESKTOP GRID LAYOUT --- */
+  @media (min-width: 768px) {
+    #app-container {
+      display: grid;
+      grid-template-areas: 
+        "sidebar main"
+        "playbar playbar";
+      grid-template-columns: var(--sidebar-width) 1fr;
+      grid-template-rows: 1fr var(--playbar-height);
+      gap: 8px;
+      padding: 8px;
+    }
+
+    #sidebar { grid-area: sidebar; }
+    #main-area { grid-area: main; border-radius: var(--radius-card); background: var(--surface); }
+    #bottom-playbar { grid-area: playbar; }
+    
+    .mobile-only { display: none !important; }
+  }
+
+  /* --- MOBILE FLEX LAYOUT --- */
+  @media (max-width: 767px) {
+    #app-container {
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+    }
+    #sidebar { display: none !important; }
+    #bottom-playbar { display: none !important; }
+    #main-area { flex: 1; border-radius: 0; background: var(--bg); }
+    
+    .desktop-only { display: none !important; }
+  }
+
+  /* --- SIDEBAR (DESKTOP) --- */
+  #sidebar {
+    display: flex;
+    flex-direction: column;
+    background: rgba(18, 18, 18, 0.7);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-card);
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .sidebar-item {
+    background: none;
+    border: none;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 4px;
+    transition: color 0.2s, background 0.2s;
+  }
+  .sidebar-item:hover { color: var(--text); }
+  .sidebar-item.active { color: var(--text); background: var(--surface3); }
+  .sidebar-item svg { width: 24px; height: 24px; fill: currentColor; }
+  
+  .sidebar-spacer { flex: 1; }
+
+  /* Desktop Voice Widget */
+  .desktop-voice-widget {
+    background: rgba(29, 185, 84, 0.05);
+    border: 1px solid rgba(29, 185, 84, 0.2);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .desktop-voice-widget:hover { background: rgba(29, 185, 84, 0.1); }
+  .desktop-voice-widget:active { transform: scale(0.98); }
+  
+  .voice-ring {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--surface2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
     position: relative;
-    height: 100%;
+  }
+  .voice-ring svg { width: 28px; height: 28px; fill: var(--green); z-index: 2; }
+  
+  .desktop-voice-widget.active .voice-ring svg { fill: var(--text); }
+  .desktop-voice-widget.active .voice-ring { background: var(--green); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .voice-ring::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 50%;
+      border: 2px solid var(--green);
+      animation: ripple 2s infinite cubic-bezier(0.65, 0, 0.34, 1);
+    }
+  }
+
+  @keyframes ripple {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+
+  /* --- MAIN AREA --- */
+  #main-area {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
   }
 
   /* Top Bar */
   header {
-    height: var(--topbar-height);
+    height: 64px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 16px;
-    padding-top: 15px; /* space for notch */
+    padding: 0 24px;
+    background: linear-gradient(rgba(0,0,0,0.6), transparent);
     flex-shrink: 0;
+    z-index: 10;
   }
 
   .header-title {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 700;
   }
 
-  /* Pulse Dot */
-  .voice-indicator {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--green);
-  }
-
-  .pulse-dot {
+  .mobile-pulse-dot {
     width: 8px;
     height: 8px;
     background-color: var(--green);
@@ -129,7 +191,7 @@
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .pulse-dot {
+    .mobile-pulse-dot {
       animation: pulse 2s infinite ease-in-out;
     }
   }
@@ -140,11 +202,11 @@
     100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); }
   }
 
-  /* Content Area */
+  /* Content Views */
   main {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: 24px;
     scrollbar-width: none;
   }
   main::-webkit-scrollbar { display: none; }
@@ -162,15 +224,27 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* Bottom Nav */
-  nav {
+  .placeholder-card {
+    background: var(--surface2);
+    border-radius: var(--radius-card);
+    padding: 32px;
+    text-align: center;
+    margin-top: 20px;
+  }
+  .placeholder-emoji { font-size: 56px; margin-bottom: 24px; display: block; }
+  .placeholder-text { color: var(--text2); font-size: 15px; line-height: 1.6; }
+
+  /* --- BOTTOM NAV (MOBILE) --- */
+  #bottom-nav {
     height: var(--nav-height);
-    background: linear-gradient(transparent, rgba(0,0,0,0.8) 20%, #121212 80%);
+    background: rgba(18, 18, 18, 0.85);
+    backdrop-filter: blur(20px);
     display: flex;
     justify-content: space-around;
     align-items: center;
     padding-bottom: env(safe-area-inset-bottom);
     flex-shrink: 0;
+    border-top: 1px solid rgba(255,255,255,0.05);
   }
 
   .nav-item {
@@ -189,40 +263,64 @@
     touch-action: manipulation;
   }
   .nav-item:active { transform: scale(0.96); }
-  .nav-item:hover { opacity: 0.8; }
   .nav-item.active { color: var(--text); }
-  .nav-item svg {
-    fill: currentColor;
-    width: 24px;
-    height: 24px;
-  }
-  .nav-item.active svg.voice-icon {
-    fill: var(--green);
-  }
+  .nav-item svg { fill: currentColor; width: 24px; height: 24px; }
+  .nav-item.active svg.voice-icon { fill: var(--green); }
   .nav-label { font-size: 11px; font-weight: 500; }
   .nav-item.active .voice-label { color: var(--green); }
 
-  /* Utility classes */
-  .placeholder-card {
-    background: var(--surface);
+  /* --- BOTTOM PLAYBAR (DESKTOP) --- */
+  #bottom-playbar {
+    background: rgba(18, 18, 18, 0.9);
+    backdrop-filter: blur(20px);
     border-radius: var(--radius-card);
-    padding: 24px;
-    text-align: center;
-    margin-top: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text2);
+    font-size: 14px;
+    font-weight: 500;
   }
-  .placeholder-emoji { font-size: 48px; margin-bottom: 16px; display: block; }
-  .placeholder-text { color: var(--text2); font-size: 14px; line-height: 1.5; }
 
 </style>
 </head>
 <body>
 
-<div id="device-bezel">
-  <div id="app-container">
+<div id="app-container">
+  
+  <!-- DESKTOP SIDEBAR -->
+  <aside id="sidebar" class="desktop-only">
+    <nav class="sidebar-nav">
+      <button class="sidebar-item active" data-tab="home" aria-label="Home">
+        <svg viewBox="0 0 24 24"><path d="M12.5 3.248a.75.75 0 0 0-1 0L4.25 8.941l-.25.21v11.1c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-5.5h4v5.5a.75.75 0 0 0 .75.75h4.5a.75.75 0 0 0 .75-.75v-11.1l-.25-.21-7.25-5.693Z"/></svg>
+        <span>Home</span>
+      </button>
+      <button class="sidebar-item" data-tab="search" aria-label="Search">
+        <svg viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z"/></svg>
+        <span>Search</span>
+      </button>
+      <button class="sidebar-item" data-tab="library" aria-label="Your Library">
+        <svg viewBox="0 0 24 24"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 5h-3v5.5c0 1.38-1.12 2.5-2.5 2.5S10 13.88 10 12.5s1.12-2.5 2.5-2.5c.57 0 1.08.19 1.5.51V5h4v2zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6z"/></svg>
+        <span>Your Library</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-spacer"></div>
+
+    <div class="desktop-voice-widget" data-tab="voice">
+      <div class="voice-ring">
+        <svg viewBox="0 0 24 24"><path d="M12 2c-1.657 0-3 1.343-3 3v7c0 1.657 1.343 3 3 3s3-1.343 3-3V5c0-1.657-1.343-3-3-3zM7 11.5a.5.5 0 0 0-1 0 6 6 0 0 0 12 0 .5.5 0 0 0-1 0 5 5 0 0 1-10 0zm4 7.402V21.5a.5.5 0 0 0 1 0v-2.598A7.004 7.004 0 0 0 18.5 11.5a.5.5 0 0 0-1 0 6 6 0 0 1-11 0 .5.5 0 0 0-1 0 7.004 7.004 0 0 0 6.5 7.402z"/></svg>
+      </div>
+      <span style="font-size: 13px; font-weight: 600; color: var(--green);">Always Listening</span>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <div id="main-area">
     <header id="top-bar">
       <div class="header-title" id="header-title">Good evening</div>
-      <div class="voice-indicator">
-        <div class="pulse-dot"></div>
+      <div class="voice-indicator mobile-only">
+        <div class="mobile-pulse-dot"></div>
       </div>
     </header>
 
@@ -231,124 +329,94 @@
         <div class="placeholder-card">
           <span class="placeholder-emoji">🏠</span>
           <h2>Home</h2>
-          <p class="placeholder-text mt-2">Your personalized feed and saved sessions will appear here in Phase 5.</p>
+          <p class="placeholder-text">Your personalized feed and saved sessions will appear here in Phase 5.</p>
         </div>
       </section>
-
       <section id="view-search" class="view-section">
         <div class="placeholder-card">
           <span class="placeholder-emoji">🔍</span>
           <h2>Search</h2>
-          <p class="placeholder-text mt-2">Discover new music and podcasts. (Not implemented in this prototype).</p>
+          <p class="placeholder-text">Discover new music and podcasts. (Not implemented in this prototype).</p>
         </div>
       </section>
-
       <section id="view-library" class="view-section">
         <div class="placeholder-card">
           <span class="placeholder-emoji">📚</span>
           <h2>Your Library</h2>
-          <p class="placeholder-text mt-2">Playlists and liked songs will appear here in Phase 3.</p>
+          <p class="placeholder-text">Playlists and liked songs will appear here in Phase 3.</p>
         </div>
       </section>
-
       <section id="view-voice" class="view-section">
         <div class="placeholder-card">
           <span class="placeholder-emoji">🎙️</span>
           <h2>Voice Save</h2>
-          <p class="placeholder-text mt-2">The voice engine and voice settings will live here in Phase 4.</p>
+          <p class="placeholder-text">The voice engine and voice settings will live here in Phase 4.</p>
         </div>
       </section>
     </main>
-
-    <nav id="bottom-nav">
-      <button class="nav-item active" data-tab="home" aria-label="Home">
-        <svg viewBox="0 0 24 24"><path d="M12.5 3.248a.75.75 0 0 0-1 0L4.25 8.941l-.25.21v11.1c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-5.5h4v5.5a.75.75 0 0 0 .75.75h4.5a.75.75 0 0 0 .75-.75v-11.1l-.25-.21-7.25-5.693Z"/></svg>
-        <span class="nav-label">Home</span>
-      </button>
-      
-      <button class="nav-item" data-tab="search" aria-label="Search">
-        <svg viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z"/></svg>
-        <span class="nav-label">Search</span>
-      </button>
-
-      <button class="nav-item" data-tab="library" aria-label="Your Library">
-        <svg viewBox="0 0 24 24"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 5h-3v5.5c0 1.38-1.12 2.5-2.5 2.5S10 13.88 10 12.5s1.12-2.5 2.5-2.5c.57 0 1.08.19 1.5.51V5h4v2zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6z"/></svg>
-        <span class="nav-label">Your Library</span>
-      </button>
-
-      <button class="nav-item" data-tab="voice" aria-label="Voice">
-        <svg class="voice-icon" viewBox="0 0 24 24"><path d="M12 2c-1.657 0-3 1.343-3 3v7c0 1.657 1.343 3 3 3s3-1.343 3-3V5c0-1.657-1.343-3-3-3zM7 11.5a.5.5 0 0 0-1 0 6 6 0 0 0 12 0 .5.5 0 0 0-1 0 5 5 0 0 1-10 0zm4 7.402V21.5a.5.5 0 0 0 1 0v-2.598A7.004 7.004 0 0 0 18.5 11.5a.5.5 0 0 0-1 0 6 6 0 0 1-11 0 .5.5 0 0 0-1 0 7.004 7.004 0 0 0 6.5 7.402z"/></svg>
-        <span class="nav-label voice-label">Voice</span>
-      </button>
-    </nav>
   </div>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav id="bottom-nav" class="mobile-only">
+    <button class="nav-item active" data-tab="home" aria-label="Home">
+      <svg viewBox="0 0 24 24"><path d="M12.5 3.248a.75.75 0 0 0-1 0L4.25 8.941l-.25.21v11.1c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-5.5h4v5.5a.75.75 0 0 0 .75.75h4.5a.75.75 0 0 0 .75-.75v-11.1l-.25-.21-7.25-5.693Z"/></svg>
+      <span class="nav-label">Home</span>
+    </button>
+    <button class="nav-item" data-tab="search" aria-label="Search">
+      <svg viewBox="0 0 24 24"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.279z"/></svg>
+      <span class="nav-label">Search</span>
+    </button>
+    <button class="nav-item" data-tab="library" aria-label="Your Library">
+      <svg viewBox="0 0 24 24"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 5h-3v5.5c0 1.38-1.12 2.5-2.5 2.5S10 13.88 10 12.5s1.12-2.5 2.5-2.5c.57 0 1.08.19 1.5.51V5h4v2zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6z"/></svg>
+      <span class="nav-label">Your Library</span>
+    </button>
+    <button class="nav-item" data-tab="voice" aria-label="Voice">
+      <svg class="voice-icon" viewBox="0 0 24 24"><path d="M12 2c-1.657 0-3 1.343-3 3v7c0 1.657 1.343 3 3 3s3-1.343 3-3V5c0-1.657-1.343-3-3-3zM7 11.5a.5.5 0 0 0-1 0 6 6 0 0 0 12 0 .5.5 0 0 0-1 0 5 5 0 0 1-10 0zm4 7.402V21.5a.5.5 0 0 0 1 0v-2.598A7.004 7.004 0 0 0 18.5 11.5a.5.5 0 0 0-1 0 6 6 0 0 1-11 0 .5.5 0 0 0-1 0 7.004 7.004 0 0 0 6.5 7.402z"/></svg>
+      <span class="nav-label voice-label">Voice</span>
+    </button>
+  </nav>
+
+  <!-- DESKTOP BOTTOM PLAYBAR PLACEHOLDER -->
+  <div id="bottom-playbar" class="desktop-only">
+    <div>Desktop Now Playing controls will go here in Phase 2</div>
+  </div>
+
 </div>
 
 <script>
-  // 1. DEFAULT STATE
+  // DEFAULT STATE
   const DEFAULT_STATE = {
     activeTab: 'home',
     songs: [
-      {id:1, title:"Blinding Lights", artist:"The Weeknd", album:"After Hours", duration:200, cover:"https://picsum.photos/seed/bl/300/300", energy:"high", mood:"euphoric", genre:"synthpop"},
-      {id:2, title:"Levitating", artist:"Dua Lipa", album:"Future Nostalgia", duration:203, cover:"https://picsum.photos/seed/lev/300/300", energy:"high", mood:"happy", genre:"pop"},
-      {id:3, title:"Tum Se Hi", artist:"Mohit Chauhan", album:"Jab We Met", duration:312, cover:"https://picsum.photos/seed/tsh/300/300", energy:"low", mood:"romantic", genre:"bollywood"},
-      {id:4, title:"Falani", artist:"Masoom Sharma", album:"Haryanvi Hits", duration:224, cover:"https://picsum.photos/seed/fal/300/300", energy:"high", mood:"energetic", genre:"haryanvi"},
-      {id:5, title:"Glimpse of Us", artist:"Joji", album:"Smithereens", duration:234, cover:"https://picsum.photos/seed/gou/300/300", energy:"low", mood:"melancholic", genre:"indie"}
+      {id:1, title:"Blinding Lights", artist:"The Weeknd", album:"After Hours", duration:200, cover:"https://picsum.photos/seed/bl/300/300", energy:"high", mood:"euphoric", genre:"synthpop"}
     ],
-    playlists: [
-      {id:"p1", name:"Late Night Drives", songIds:[]},
-      {id:"p2", name:"Chill Vibes", songIds:[]},
-      {id:"p3", name:"Discover Mix", songIds:[]},
-      {id:"p4", name:"Study Mode", songIds:[]}
-    ],
-    likedSongs: [],
-    likedSongTimestamps: {},
-    currentSongId: 1,
-    previousSongId: null,
-    previousPreviousSongId: null,
-    playHistory: [],
-    playing: true,
-    progress: 0,
-    shuffleActive: false,
-    repeatActive: false,
-    volume: 70,
-    sleepTimerEnd: null,
-    tasteProfile: {genres:{}, moods:{}, artists:{}, totalSaves:0},
-    sessionSignals: [],
-    discoveryFeed: [3,4,5],
-    lastSavedSongId: null,
-    lastAction: null,
-    lastActionTimestamp: null,
-    voiceFeedbackEnabled: true,
-    unknownCommandCount: 0,
-    lastUnknownCommandTimestamp: null,
-    proactiveNudgeShown: false
+    playlists: [], likedSongs: [], likedSongTimestamps: {}, currentSongId: 1, previousSongId: null, previousPreviousSongId: null,
+    playHistory: [], playing: true, progress: 0, shuffleActive: false, repeatActive: false, volume: 70, sleepTimerEnd: null,
+    tasteProfile: {genres:{}, moods:{}, artists:{}, totalSaves:0}, sessionSignals: [], discoveryFeed: [], lastSavedSongId: null,
+    lastAction: null, lastActionTimestamp: null, voiceFeedbackEnabled: true, unknownCommandCount: 0, lastUnknownCommandTimestamp: null, proactiveNudgeShown: false
   };
 
   const STORAGE_KEY = 'spotify_voice_save_state';
   let _rawState = {};
 
-  // 2. INITIALIZATION
+  // INITIALIZATION
   function loadState() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         _rawState = { ...DEFAULT_STATE, ...parsed };
-        
-        // Reset non-persistent fields
         _rawState.sessionSignals = [];
         _rawState.proactiveNudgeShown = false;
       } else {
         _rawState = { ...DEFAULT_STATE };
       }
     } catch (e) {
-      console.warn("localStorage inaccessible or corrupted, using default state", e);
       _rawState = { ...DEFAULT_STATE };
     }
   }
 
-  // 3. PERSISTENCE (Debounced)
+  // PERSISTENCE (Debounced)
   let saveTimeout = null;
   function saveState() {
     clearTimeout(saveTimeout);
@@ -358,13 +426,11 @@
         delete toSave.sessionSignals;
         delete toSave.proactiveNudgeShown;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-      } catch(e) {
-        console.warn("Could not save to localStorage", e);
-      }
+      } catch(e) {}
     }, 100);
   }
 
-  // 4. REACTIVE PROXY
+  // REACTIVE PROXY
   const proxyHandler = {
     set(target, property, value) {
       target[property] = value;
@@ -377,26 +443,21 @@
   loadState();
   const STATE = new Proxy(_rawState, proxyHandler);
 
-  // 5. RENDER LOGIC
+  // RENDER LOGIC
   function render() {
     const tab = STATE.activeTab || 'home';
     
+    // Update Views
     document.querySelectorAll('.view-section').forEach(el => {
-      if (el.id === 'view-' + tab) {
-        el.classList.add('active');
-      } else {
-        el.classList.remove('active');
-      }
+      el.classList.toggle('active', el.id === 'view-' + tab);
     });
 
-    document.querySelectorAll('.nav-item').forEach(el => {
-      if (el.getAttribute('data-tab') === tab) {
-        el.classList.add('active');
-      } else {
-        el.classList.remove('active');
-      }
+    // Update Nav Items (Mobile & Desktop)
+    document.querySelectorAll('[data-tab]').forEach(el => {
+      el.classList.toggle('active', el.getAttribute('data-tab') === tab);
     });
     
+    // Update Header
     const headerTitle = document.getElementById('header-title');
     if (tab === 'home') headerTitle.textContent = 'Good evening';
     else if (tab === 'search') headerTitle.textContent = 'Search';
@@ -404,15 +465,29 @@
     else if (tab === 'voice') headerTitle.textContent = 'Voice Settings';
   }
 
-  // 6. EVENT LISTENERS
+  // EVENT LISTENERS
   document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.nav-item').forEach(btn => {
+    // Click listeners for all tabs (sidebar, bottom nav, voice widget)
+    document.querySelectorAll('[data-tab]').forEach(btn => {
       btn.addEventListener('click', () => {
         const targetTab = btn.getAttribute('data-tab');
-        if (STATE.activeTab !== targetTab) {
-          STATE.activeTab = targetTab;
-        }
+        if (STATE.activeTab !== targetTab) STATE.activeTab = targetTab;
       });
+    });
+
+    // Keyboard Shortcuts (Desktop Enhancements)
+    window.addEventListener('keydown', (e) => {
+      // Prevent shortcut if typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
+      if (e.code === 'Space') {
+        e.preventDefault();
+        STATE.playing = !STATE.playing;
+        console.log("Keyboard Shortcut: Toggle Play/Pause ->", STATE.playing);
+      } else if (e.code === 'KeyM') {
+        STATE.volume = STATE.volume > 0 ? 0 : 70;
+        console.log("Keyboard Shortcut: Toggle Mute ->", STATE.volume);
+      }
     });
 
     render();
