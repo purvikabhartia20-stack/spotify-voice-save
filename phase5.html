@@ -833,16 +833,31 @@
          this.recognition.onend = () => {
            const wasListening = this.isListening;
            this.isListening = false;
-           document.getElementById('mic-status-text').textContent = 'Reconnecting...';
-           document.getElementById('mic-status-text').style.color = 'var(--text2)';
+           const st = document.getElementById('mic-status-text');
+           if (st) {
+             st.textContent = 'Reconnecting...';
+             st.style.color = 'var(--text2)';
+           }
            
            if (wasListening) {
-             setTimeout(() => {
+             clearTimeout(this.restartTimeout);
+             this.restartTimeout = setTimeout(() => {
                try { this.start(); } catch(e){}
              }, 300);
            }
          };
          this.start();
+         
+         // Add manual restart on click
+         const micStatus = document.querySelector('.mic-status');
+         if (micStatus) {
+           micStatus.style.cursor = 'pointer';
+           micStatus.title = "Click to force restart microphone";
+           micStatus.onclick = () => {
+             this.stop();
+             setTimeout(() => { this.isListening = true; this.start(); }, 500);
+           };
+         }
       }).catch(err => {
          document.getElementById('mic-status-text').textContent = 'Blocked! Please allow mic access.';
          document.getElementById('mic-status-text').style.color = 'var(--red)';
@@ -864,9 +879,11 @@
     speak(text) {
       if (!STATE.voiceFeedbackEnabled) return;
       this.synth.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 1.1;
-      u.onstart = () => { 
+      // Store globally to prevent garbage collection bugs in Chrome
+      this.currentUtterance = new SpeechSynthesisUtterance(text);
+      this.currentUtterance.rate = 1.1;
+      
+      this.currentUtterance.onstart = () => { 
         this.isSpeaking = true; 
         if (this.recognition) { try { this.recognition.stop(); } catch(e){} }
         clearTimeout(this.speakFailsafe);
@@ -875,13 +892,22 @@
             this.start();
         }, 5000); 
       };
-      u.onend = () => { 
+      
+      this.currentUtterance.onend = () => { 
+        clearTimeout(this.speakFailsafe);
         setTimeout(() => { 
             this.isSpeaking = false; 
             this.start();
         }, 500); 
       };
-      this.synth.speak(u);
+      
+      this.currentUtterance.onerror = () => {
+        clearTimeout(this.speakFailsafe);
+        this.isSpeaking = false;
+        this.start();
+      };
+      
+      this.synth.speak(this.currentUtterance);
     },
 
     toast(msg) {
@@ -954,8 +980,7 @@
     },
 
     handleTranscript(interim, final) {
-      if (this.isSpeaking) return; // Prevent hearing its own voice through speakers
-      
+      // Always update UI transcript so user knows mic is working
       const vTrans = document.getElementById('voice-transcript');
       if (vTrans && !this.followUpWindow) {
          if (final) {
@@ -966,6 +991,8 @@
             vTrans.classList.add('interim');
          }
       }
+
+      if (this.isSpeaking) return; // Prevent hearing its own voice through speakers
 
       if (final) {
         if (this.followUpWindow) {
