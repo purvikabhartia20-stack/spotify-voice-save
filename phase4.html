@@ -704,7 +704,7 @@
     audioCtx: new (window.AudioContext || window.webkitAudioContext)(),
     synth: window.speechSynthesis,
     isListening: false,
-    wakeWords: ["hey spotify"],
+    wakeWords: ["hey spotify", "hay spotify", "hey spot", "hey spoti", "hay spot"],
     undoSnapshot: null,
     undoTimeout: null,
     followUpWindow: null, // e.g. 'playlist_add'
@@ -737,6 +737,16 @@
       audioPlayer.volume = 1.0;
     },
 
+    closeVoiceUI() {
+      const vBar = document.getElementById('voice-bar');
+      if (vBar) vBar.classList.remove('active');
+      const vWave = document.querySelector('.voice-waveform');
+      if (vWave) vWave.classList.remove('listening', 'command');
+      const vTrans = document.getElementById('voice-transcript');
+      if (vTrans) vTrans.textContent = '';
+      this.unduckAudio();
+    },
+
     // Vocabulary with weights for intents
     vocab: {
       SAVE_CURRENT: { save: 3, add: 3, like: 2, keep: 2, bookmark: 2, remember: 2, this: 1, song: 1, fire: 3, banger: 3 },
@@ -753,15 +763,23 @@
     },
 
     init() {
-      if (!('webkitSpeechRecognition' in window)) {
-        console.warn("Speech API not supported");
+      // 1. Universal cross-browser/device support check
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        console.warn("Speech API not supported on this device/browser.");
+        const statusEl = document.getElementById('mic-status-text');
+        if (statusEl) {
+           statusEl.textContent = 'Voice features not supported on this device/browser.';
+           statusEl.style.color = 'var(--red)';
+        }
         return;
       }
       
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
          stream.getTracks().forEach(track => track.stop());
          
-         this.recognition = new webkitSpeechRecognition();
+         this.recognition = new SpeechRecognition();
          this.recognition.continuous = true;
          this.recognition.interimResults = true;
          this.recognition.lang = 'en-US';
@@ -792,10 +810,15 @@
          };
 
          this.recognition.onend = () => {
-           if (this.isListening) {
+           const wasListening = this.isListening;
+           this.isListening = false;
+           document.getElementById('mic-status-text').textContent = 'Reconnecting...';
+           document.getElementById('mic-status-text').style.color = 'var(--text2)';
+           
+           if (wasListening) {
              setTimeout(() => {
-               try { this.recognition.start(); } catch(e){}
-             }, 500);
+               try { this.start(); } catch(e){}
+             }, 300);
            }
          };
          this.start();
@@ -806,7 +829,7 @@
     },
 
     start() {
-      if (this.recognition && !this.isListening) {
+      if (this.recognition) {
         try { this.recognition.start(); } catch(e){}
       }
     },
@@ -822,8 +845,21 @@
       this.synth.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.rate = 1.1;
-      u.onstart = () => { this.isSpeaking = true; };
-      u.onend = () => { setTimeout(() => { this.isSpeaking = false; }, 500); };
+      u.onstart = () => { 
+        this.isSpeaking = true; 
+        if (this.recognition) { try { this.recognition.stop(); } catch(e){} }
+        clearTimeout(this.speakFailsafe);
+        this.speakFailsafe = setTimeout(() => { 
+            this.isSpeaking = false; 
+            this.start();
+        }, 5000); 
+      };
+      u.onend = () => { 
+        setTimeout(() => { 
+            this.isSpeaking = false; 
+            this.start();
+        }, 500); 
+      };
       this.synth.speak(u);
     },
 
@@ -861,7 +897,7 @@
       if (card) card.classList.remove('show');
       this.followUpWindow = null;
       this.followUpData = null;
-      this.unduckAudio();
+      this.closeVoiceUI();
     },
 
     levenshtein(a, b) {
@@ -929,11 +965,20 @@
              
              // Put engine in awaiting state so next phrase doesn't need wake word
              this.followUpWindow = 'awaiting_command';
+             clearTimeout(this.followUpTimeout);
+             this.followUpTimeout = setTimeout(() => {
+               if (this.followUpWindow === 'awaiting_command') {
+                 this.closeFollowUp();
+                 this.toast("Timeout");
+               }
+             }, 8000);
              
              // Keep UI visible and glowing
              const vBar = document.getElementById('voice-bar');
              vBar.classList.add('active');
-             document.querySelector('.voice-waveform').classList.add('listening');
+             const vWave = document.querySelector('.voice-waveform');
+             vWave.classList.remove('command');
+             vWave.classList.add('listening');
              document.getElementById('voice-transcript').textContent = 'Listening...';
           } else {
              this.parseIntent(command);
@@ -1001,11 +1046,11 @@
         switch(topIntent) {
           case 'CANCEL':
             this.toast("Cancelled");
-            this.unduckAudio();
+            this.closeVoiceUI();
             return;
             
           case 'UNDO':
-            this.undo(); this.unduckAudio(); return;
+            this.undo(); this.closeVoiceUI(); return;
           
         case 'BATCH_SAVE':
           const hist = [STATE.currentSongId, STATE.previousSongId].filter(id => id);
@@ -1046,25 +1091,25 @@
           saveState(); render();
           this.speak(`Removed.`);
           this.toast(`Removed`);
-          this.unduckAudio();
+          this.closeVoiceUI();
           return;
 
-        case 'PLAYBACK_NEXT': playNext(); this.toast("Next track"); this.unduckAudio(); return;
-        case 'PLAYBACK_PREV': playPrev(); this.toast("Previous track"); this.unduckAudio(); return;
-        case 'PLAYBACK_PAUSE': if(STATE.playing) togglePlay(); this.toast("Paused"); this.unduckAudio(); return;
-        case 'PLAYBACK_PLAY': if(!STATE.playing) togglePlay(); this.toast("Playing"); this.unduckAudio(); return;
+        case 'PLAYBACK_NEXT': playNext(); this.toast("Next track"); this.closeVoiceUI(); return;
+        case 'PLAYBACK_PREV': playPrev(); this.toast("Previous track"); this.closeVoiceUI(); return;
+        case 'PLAYBACK_PAUSE': if(STATE.playing) togglePlay(); this.toast("Paused"); this.closeVoiceUI(); return;
+        case 'PLAYBACK_PLAY': if(!STATE.playing) togglePlay(); this.toast("Playing"); this.closeVoiceUI(); return;
         
         case 'SLEEP_TIMER':
           const sleepMatch = cmd.match(/(\d+)/);
           const mins = sleepMatch ? sleepMatch[1] : "30";
           this.speak(`Sleep timer set for ${mins} minutes.`);
-          this.unduckAudio();
+          this.closeVoiceUI();
           return;
 
         case 'UNKNOWN':
           this.speak("I didn't quite catch that.");
           this.toast("Unknown command");
-          this.unduckAudio();
+          this.closeVoiceUI();
           return;
         }
       }, 600); // 600ms simulated latency
