@@ -681,7 +681,7 @@
     audioCtx: new (window.AudioContext || window.webkitAudioContext)(),
     synth: window.speechSynthesis,
     isListening: false,
-    wakeWords: ["hey spotify", "hay spotify", "hey spot", "hey spoti", "hay spot"],
+    wakeWords: ["hey spotify"],
     undoSnapshot: null,
     undoTimeout: null,
     followUpWindow: null, // e.g. 'playlist_add'
@@ -955,6 +955,17 @@
 
     handleTranscript(interim, final) {
       if (this.isSpeaking) return; // Prevent hearing its own voice through speakers
+      
+      const vTrans = document.getElementById('voice-transcript');
+      if (vTrans && !this.followUpWindow) {
+         if (final) {
+            vTrans.textContent = final;
+            vTrans.classList.remove('interim');
+         } else if (interim) {
+            vTrans.textContent = interim;
+            vTrans.classList.add('interim');
+         }
+      }
 
       if (final) {
         if (this.followUpWindow) {
@@ -969,10 +980,11 @@
         }
 
         let command = null;
+        let cleanFinal = final.replace(/[.,!?]/g, '');
         for (let w of this.wakeWords) {
-          const idx = final.indexOf(w);
+          const idx = cleanFinal.indexOf(w);
           if (idx !== -1) {
-            command = final.substring(idx + w.length).trim();
+            command = cleanFinal.substring(idx + w.length).trim();
             this.playEarcon();
             this.duckAudio();
             break;
