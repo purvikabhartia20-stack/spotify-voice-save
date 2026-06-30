@@ -152,6 +152,15 @@
   .shelf-item img { width: 140px; height: 140px; border-radius: 6px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
   .shelf-item-title { font-size: 15px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
   .shelf-item-desc { font-size: 13px; color: var(--text2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+    
+  .taste-profile-card { background: var(--surface); margin: 0 16px 24px; padding: 16px; border-radius: var(--radius-card); }
+  .tp-meter-wrap { margin-bottom: 12px; }
+  .tp-meter-bg { background: var(--surface2); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+  .tp-meter-fill { background: var(--green); height: 100%; transition: width 0.5s ease; }
+  .tp-meter-labels { display: flex; justify-content: space-between; font-size: 13px; }
+  .tp-tags { display: flex; gap: 8px; font-size: 13px; align-items: center; color: var(--text2); margin-top: 12px; }
+  .tp-tag { background: var(--surface2); color: var(--text); padding: 4px 10px; border-radius: var(--radius-pill); font-size: 12px; }
+  .reasoning-tag { font-size: 11px; color: var(--green); margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
 
   .card-play-btn {
     position: absolute; bottom: 84px; right: 24px;
@@ -447,38 +456,6 @@
             </div>
             <div class="home-grid-item" onclick="playSong(28)">
               <img src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b4/1b/a3/b41ba3ac-5ec4-a1b7-0edb-b044bccf85d2/3617051942905.jpg/600x600bb.jpg" alt="">
-              <span>Butterfly</span>
-              <button class="grid-play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-            </div>
-          </div>
-          
-          <h2 class="home-shelf-title">Recently Played</h2>
-          <div class="home-shelf">
-            <div class="shelf-item" onclick="playSong(7)">
-              <img src="https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/3d/01/f2/3d01f2e5-5a08-835f-3d30-d031720b2b80/22UM1IM07364.rgb.jpg/600x600bb.jpg" alt="">
-              <div class="shelf-item-title">Anti-Hero</div>
-              <div class="shelf-item-desc">Taylor Swift</div>
-              <button class="card-play-btn" onclick="event.stopPropagation(); playSong(7)"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-            </div>
-            <div class="shelf-item" onclick="playSong(16)">
-              <img src="https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/76/46/48/76464884-0e9c-1951-a3f6-ce02f74c2b19/21UMGIM26093.rgb.jpg/600x600bb.jpg" alt="">
-              <div class="shelf-item-title">good 4 u</div>
-              <div class="shelf-item-desc">Olivia Rodrigo</div>
-              <button class="card-play-btn" onclick="event.stopPropagation(); playSong(16)"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-            </div>
-            <div class="shelf-item" onclick="playSong(20)">
-              <img src="https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/14/f3/28/14f32832-b9d9-1ba1-e20a-18c2ff8b6a80/886449410873.jpg/600x600bb.jpg" alt="">
-              <div class="shelf-item-title">Kiss Me More</div>
-              <div class="shelf-item-desc">Doja Cat</div>
-              <button class="card-play-btn" onclick="event.stopPropagation(); playSong(20)"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-            </div>
-            <div class="shelf-item" onclick="playSong(13)">
-              <img src="https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/4b/30/2c/4b302cb6-7a14-5464-4e97-0577e9d0be49/18UMGIM82277.rgb.jpg/600x600bb.jpg" alt="">
-              <div class="shelf-item-title">Sunflower</div>
-              <div class="shelf-item-desc">Post Malone, Swae Lee</div>
-              <button class="card-play-btn" onclick="event.stopPropagation(); playSong(13)"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-            </div>
-            <div class="shelf-item" onclick="playSong(4)">
               <img src="https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/2a/19/fb/2a19fb85-2f70-9e44-f2a9-82abe679b88e/886449990061.jpg/600x600bb.jpg" alt="">
               <div class="shelf-item-title">As It Was</div>
               <div class="shelf-item-desc">Harry Styles</div>
@@ -759,7 +736,51 @@
       PLAYBACK_PLAY: { play: 4, resume: 3, continue: 3 },
       SLEEP_TIMER: { sleep: 3, timer: 3, stop: 1, minutes: 2, hour: 2 },
       BATCH_SAVE: { three: 4, "3": 4, all: 3, everything: 3 },
+      SESSION_RECAP: { recap: 4, "have i saved": 4, "did i save": 4, session: 3 },
       CANCEL: { nevermind: 5, cancel: 5, ignore: 5, abort: 5 }
+    },
+
+    trackSaveSignal(songId) {
+      const song = getSong(songId);
+      if (!song) return;
+      
+      // Update taste profile
+      if (song.genre) _rawState.tasteProfile.genres[song.genre] = (_rawState.tasteProfile.genres[song.genre] || 0) + 1;
+      if (song.mood) _rawState.tasteProfile.moods[song.mood] = (_rawState.tasteProfile.moods[song.mood] || 0) + 1;
+      if (song.artist) _rawState.tasteProfile.artists[song.artist] = (_rawState.tasteProfile.artists[song.artist] || 0) + 1;
+      _rawState.tasteProfile.totalSaves += 1;
+      
+      // Update session signals (unshift to put newest first)
+      if (!_rawState.sessionSignals.some(s => s.songId === songId)) {
+        _rawState.sessionSignals.unshift({
+           songId: song.id,
+           timestamp: Date.now(),
+           mood: song.mood
+        });
+      }
+      
+      // Proactive Mood Pattern Check
+      const moodCounts = {};
+      _rawState.sessionSignals.forEach(s => {
+         if (s.mood) moodCounts[s.mood] = (moodCounts[s.mood] || 0) + 1;
+      });
+      
+      let topMood = null;
+      for (const [m, count] of Object.entries(moodCounts)) {
+         if (count >= 2) topMood = m;
+      }
+      
+      if (topMood && !_rawState.proactiveNudgeShown) {
+         _rawState.proactiveNudgeShown = true;
+         // Delay to not conflict with the immediate save follow-up
+         setTimeout(() => {
+           if (this.followUpWindow) return; // Don't interrupt if user is still in a follow up
+           this.speak(`You've saved a few ${topMood} tracks. Want me to create a playlist for this vibe?`);
+           this.followUpWindow = 'playlist_proactive_mood';
+           this.followUpData = { mood: topMood };
+           this.showFollowUp(`Create a ${topMood} playlist?`, ["Yes", "No thanks"]);
+         }, 10000); 
+      }
     },
 
     init() {
@@ -1033,6 +1054,7 @@
           PLAYBACK_PLAY: this.scoreIntent(words, 'PLAYBACK_PLAY'),
           SLEEP_TIMER: this.scoreIntent(words, 'SLEEP_TIMER'),
           BATCH_SAVE: this.scoreIntent(words, 'BATCH_SAVE'),
+          SESSION_RECAP: this.scoreIntent(words, 'SESSION_RECAP'),
           CANCEL: this.scoreIntent(words, 'CANCEL')
         };
 
@@ -1052,10 +1074,24 @@
           case 'UNDO':
             this.undo(); this.closeVoiceUI(); return;
           
+        case 'SESSION_RECAP':
+          const count = STATE.sessionSignals.length;
+          if (count === 0) {
+             this.speak("You haven't saved any songs this session.");
+          } else {
+             this.speak(`You saved ${count} song${count>1?'s':''} this session.`);
+             STATE.activeTab = 'home';
+          }
+          this.closeVoiceUI();
+          return;
+
         case 'BATCH_SAVE':
           const hist = [STATE.currentSongId, STATE.previousSongId].filter(id => id);
           hist.forEach(id => {
-             if (!STATE.likedSongs.some(ls => ls.id === id)) _rawState.likedSongs.push({id, addedAt: Date.now()});
+             if (!STATE.likedSongs.some(ls => ls.id === id)) {
+               _rawState.likedSongs.push({id, addedAt: Date.now()});
+               this.trackSaveSignal(id);
+             }
           });
           saveState(); render();
           this.speak(`Saved songs to library.`);
@@ -1066,7 +1102,10 @@
 
         case 'SAVE_PREVIOUS':
           const pSong = getSong(STATE.previousSongId);
-          if (pSong && !STATE.likedSongs.some(ls => ls.id === pSong.id)) _rawState.likedSongs.push({id: pSong.id, addedAt: Date.now()});
+          if (pSong && !STATE.likedSongs.some(ls => ls.id === pSong.id)) {
+             _rawState.likedSongs.push({id: pSong.id, addedAt: Date.now()});
+             this.trackSaveSignal(pSong.id);
+          }
           saveState(); render();
           this.speak(`Saved.`);
           this.followUpWindow = 'playlist_add';
@@ -1076,7 +1115,10 @@
 
         case 'SAVE_CURRENT':
           const song = getSong(STATE.currentSongId);
-          if (!STATE.likedSongs.some(ls => ls.id === song.id)) _rawState.likedSongs.push({id: song.id, addedAt: Date.now()});
+          if (!STATE.likedSongs.some(ls => ls.id === song.id)) {
+            _rawState.likedSongs.push({id: song.id, addedAt: Date.now()});
+            this.trackSaveSignal(song.id);
+          }
           saveState(); render();
           this.speak(`Saved.`);
           this.toast(`❤️ Saved`);
@@ -1131,6 +1173,23 @@
          this.speak(`Added to ${matched.name}.`);
          this.toast(`Added to ${matched.name}`);
          this.closeFollowUp();
+      } else if (this.followUpWindow === 'playlist_proactive_mood' && /(yes|sure|okay|do it|create)/.test(text)) {
+         const newId = 'p' + (STATE.playlists.length + 1);
+         const m = this.followUpData.mood;
+         const pName = m.charAt(0).toUpperCase() + m.slice(1) + " Picks";
+         const songIds = STATE.sessionSignals.filter(s => s.mood === m).map(s => s.songId);
+         
+         _rawState.playlists.push({
+           id: newId,
+           name: pName,
+           cover: getSong(songIds[0]).cover,
+           songIds: songIds,
+           expanded: false
+         });
+         saveState(); render();
+         this.speak(`Created ${pName}.`);
+         this.toast(`Playlist created`);
+         this.closeFollowUp();
       } else {
          this.speak(`I don't see that playlist. Which one?`);
       }
@@ -1145,34 +1204,34 @@
     nowPlayingExpanded: false,
     likedExpanded: true,
     songs: [
-      {id:1, title:"Blinding Lights", artist:"The Weeknd", album:"After Hours", duration:200, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/a6/6e/bf/a66ebf79-5008-8948-b352-a790fc87446b/19UM1IM04638.rgb.jpg/600x600bb.jpg", color:"#b02a2a"},
-      {id:2, title:"Levitating", artist:"Dua Lipa", album:"Future Nostalgia", duration:203, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/6c/11/d6/6c11d681-aa3a-d59e-4c2e-f77e181026ab/190295092665.jpg/600x600bb.jpg", color:"#a832a8"},
-      {id:3, title:"Glimpse of Us", artist:"Joji", album:"Smithereens", duration:234, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d0/2a/43/d02a433a-3ab8-9a94-b07d-1dc599b64966/93624864387.jpg/600x600bb.jpg", color:"#222222"},
-      {id:4, title:"As It Was", artist:"Harry Styles", album:"Harry's House", duration:167, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/2a/19/fb/2a19fb85-2f70-9e44-f2a9-82abe679b88e/886449990061.jpg/600x600bb.jpg", color:"#8c512a"},
-      {id:5, title:"Kill Bill", artist:"SZA", album:"SOS", duration:153, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/bd/3b/a9/bd3ba9fb-9609-144f-bcfe-ead67b5f6ab3/196589564931.jpg/600x600bb.jpg", color:"#1a4361"},
-      {id:6, title:"Creepin'", artist:"Metro Boomin", album:"Heroes & Villains", duration:221, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/82/f7/2b/82f72ba4-524c-fc9d-cb8c-5a96d2ddf536/22UM1IM35267.rgb.jpg/600x600bb.jpg", color:"#611a1a"},
-      {id:7, title:"Anti-Hero", artist:"Taylor Swift", album:"Midnights", duration:200, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/3d/01/f2/3d01f2e5-5a08-835f-3d30-d031720b2b80/22UM1IM07364.rgb.jpg/600x600bb.jpg", color:"#43346b"},
-      {id:8, title:"Pink + White", artist:"Frank Ocean", album:"Blonde", duration:184, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/bb/45/68/bb4568f3-68cd-619d-fbcb-4e179916545d/BlondCover-Final.jpg/600x600bb.jpg", color:"#6b6734"},
-      {id:9, title:"Cruel Summer", artist:"Taylor Swift", album:"Lover", duration:178, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/49/3d/ab/493dab54-f920-9043-6181-80993b8116c9/19UMGIM53909.rgb.jpg/600x600bb.jpg", color:"#8a2364"},
-      {id:10, title:"Starboy", artist:"The Weeknd", album:"Starboy", duration:230, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/b5/92/bb/b592bb72-52e3-e756-9b26-9f56d08f47ab/16UMGIM67864.rgb.jpg/600x600bb.jpg", color:"#141738"},
-      {id:11, title:"Lover", artist:"Taylor Swift", album:"Lover", duration:221, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/49/3d/ab/493dab54-f920-9043-6181-80993b8116c9/19UMGIM53909.rgb.jpg/600x600bb.jpg", color:"#8a2364"},
-      {id:12, title:"Shape of You", artist:"Ed Sheeran", album:"Divide", duration:233, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/15/e6/e8/15e6e8a4-4190-6a8b-86c3-ab4a51b88288/190295851286.jpg/600x600bb.jpg", color:"#22567d"},
-      {id:13, title:"Sunflower", artist:"Post Malone", album:"Spider-Man", duration:158, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/4b/30/2c/4b302cb6-7a14-5464-4e97-0577e9d0be49/18UMGIM82277.rgb.jpg/600x600bb.jpg", color:"#7a7d22"},
-      {id:14, title:"Sweater Weather", artist:"The Neighbourhood", album:"I Love You.", duration:240, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/28/71/00/287100fb-5c31-0195-5343-e6b3625886d0/886443969834.jpg/600x600bb.jpg", color:"#363636"},
-      {id:15, title:"Save Your Tears", artist:"The Weeknd", album:"After Hours", duration:215, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/83/3a/f7/833af71b-2e0c-3303-24f5-8f5c546c073b/20UMGIM21167.rgb.jpg/600x600bb.jpg", color:"#b02a2a"},
-      {id:16, title:"good 4 u", artist:"Olivia Rodrigo", album:"SOUR", duration:178, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/76/46/48/76464884-0e9c-1951-a3f6-ce02f74c2b19/21UMGIM26093.rgb.jpg/600x600bb.jpg", color:"#5b3678"},
-      {id:17, title:"Heat Waves", artist:"Glass Animals", album:"Dreamland", duration:238, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/da/8b/77/da8b7731-6f4f-eacf-5e74-8b23389eefa1/20UMGIM03371.rgb.jpg/600x600bb.jpg", color:"#783636"},
-      {id:18, title:"Peaches", artist:"Justin Bieber", album:"Justice", duration:198, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/e0/92/da/e092da2d-9f6d-11dc-7843-2021e95a2b61/21UMGIM17518.rgb.jpg/600x600bb.jpg", color:"#6f7a36"},
-      {id:19, title:"Watermelon Sugar", artist:"Harry Styles", album:"Fine Line", duration:174, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/2b/c4/c9/2bc4c9d4-3bc6-ab13-3f71-df0b89b173de/886448022213.jpg/600x600bb.jpg", color:"#7a365b"},
-      {id:20, title:"Kiss Me More", artist:"Doja Cat", album:"Planet Her", duration:208, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/14/f3/28/14f32832-b9d9-1ba1-e20a-18c2ff8b6a80/886449410873.jpg/600x600bb.jpg", color:"#753245"},
-      {id:21, title:"Stay", artist:"The Kid LAROI", album:"F*CK LOVE", duration:141, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/89/59/6a/89596ab9-fa3c-8d08-4d95-a6450fa2013c/886449400515.jpg/600x600bb.jpg", color:"#222222"},
-      {id:22, title:"INDUSTRY BABY", artist:"Lil Nas X", album:"MONTERO", duration:212, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/f7/16/67/f7166746-6299-5e54-8c7c-9535e941a53e/886449403929.jpg/600x600bb.jpg", color:"#6e1531"},
-      {id:23, title:"Bad Habit", artist:"Steve Lacy", album:"Gemini Rights", duration:232, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/df/63/3d/df633d60-5e7f-7050-0857-0327c0a3649e/196589380630.jpg/600x600bb.jpg", color:"#595821"},
-      {id:24, title:"golden hour", artist:"JVKE", album:"this is what...", duration:209, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/8d/1a/7b/8d1a7b44-316f-7c7f-4380-935673fb697a/5056167175650.jpg/600x600bb.jpg", color:"#594721"},
-      {id:25, title:"Vampire", artist:"Olivia Rodrigo", album:"GUTS", duration:219, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/08/9e/07/089e0799-b405-9e69-b648-e6a19df9879c/24UMGIM30485.rgb.jpg/600x600bb.jpg", color:"#261536"},
-      {id:26, title:"I Think They Call This Love", artist:"Elliot James Reay", album:"Single", duration:180, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/6c/11/d6/6c11d681-aa3a-d59e-4c2e-f77e181026ab/190295092665.jpg/600x600bb.jpg", color:"#4a4a4a"},
-      {id:27, title:"Girlfriend", artist:"Justin Bieber", album:"Believe", duration:200, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/73/08/1a/73081a96-0f7c-b5f8-2757-5c17fb714323/12UMGIM31899.rgb.jpg/600x600bb.jpg", color:"#3b2f54"},
-      {id:28, title:"Butterfly", artist:"Jass Manak", album:"No Competition", duration:190, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b4/1b/a3/b41ba3ac-5ec4-a1b7-0edb-b044bccf85d2/3617051942905.jpg/600x600bb.jpg", color:"#1a4361"}
+      {id:1, title:"Blinding Lights", artist:"The Weeknd", album:"After Hours", duration:200, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/a6/6e/bf/a66ebf79-5008-8948-b352-a790fc87446b/19UM1IM04638.rgb.jpg/600x600bb.jpg", color:"#b02a2a", genre:"synthpop", mood:"euphoric"},
+      {id:2, title:"Levitating", artist:"Dua Lipa", album:"Future Nostalgia", duration:203, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/6c/11/d6/6c11d681-aa3a-d59e-4c2e-f77e181026ab/190295092665.jpg/600x600bb.jpg", color:"#a832a8", genre:"pop", mood:"happy"},
+      {id:3, title:"Glimpse of Us", artist:"Joji", album:"Smithereens", duration:234, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d0/2a/43/d02a433a-3ab8-9a94-b07d-1dc599b64966/93624864387.jpg/600x600bb.jpg", color:"#222222", genre:"indie", mood:"melancholic"},
+      {id:4, title:"As It Was", artist:"Harry Styles", album:"Harry's House", duration:167, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/2a/19/fb/2a19fb85-2f70-9e44-f2a9-82abe679b88e/886449990061.jpg/600x600bb.jpg", color:"#8c512a", genre:"pop", mood:"upbeat"},
+      {id:5, title:"Kill Bill", artist:"SZA", album:"SOS", duration:153, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/bd/3b/a9/bd3ba9fb-9609-144f-bcfe-ead67b5f6ab3/196589564931.jpg/600x600bb.jpg", color:"#1a4361", genre:"r&b", mood:"chill"},
+      {id:6, title:"Creepin'", artist:"Metro Boomin", album:"Heroes & Villains", duration:221, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/82/f7/2b/82f72ba4-524c-fc9d-cb8c-5a96d2ddf536/22UM1IM35267.rgb.jpg/600x600bb.jpg", color:"#611a1a", genre:"hip-hop", mood:"dark"},
+      {id:7, title:"Anti-Hero", artist:"Taylor Swift", album:"Midnights", duration:200, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/3d/01/f2/3d01f2e5-5a08-835f-3d30-d031720b2b80/22UM1IM07364.rgb.jpg/600x600bb.jpg", color:"#43346b", genre:"pop", mood:"reflective"},
+      {id:8, title:"Pink + White", artist:"Frank Ocean", album:"Blonde", duration:184, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/bb/45/68/bb4568f3-68cd-619d-fbcb-4e179916545d/BlondCover-Final.jpg/600x600bb.jpg", color:"#6b6734", genre:"r&b", mood:"chill"},
+      {id:9, title:"Cruel Summer", artist:"Taylor Swift", album:"Lover", duration:178, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/49/3d/ab/493dab54-f920-9043-6181-80993b8116c9/19UMGIM53909.rgb.jpg/600x600bb.jpg", color:"#8a2364", genre:"pop", mood:"euphoric"},
+      {id:10, title:"Starboy", artist:"The Weeknd", album:"Starboy", duration:230, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/b5/92/bb/b592bb72-52e3-e756-9b26-9f56d08f47ab/16UMGIM67864.rgb.jpg/600x600bb.jpg", color:"#141738", genre:"pop", mood:"energetic"},
+      {id:11, title:"Lover", artist:"Taylor Swift", album:"Lover", duration:221, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/49/3d/ab/493dab54-f920-9043-6181-80993b8116c9/19UMGIM53909.rgb.jpg/600x600bb.jpg", color:"#8a2364", genre:"pop", mood:"romantic"},
+      {id:12, title:"Shape of You", artist:"Ed Sheeran", album:"Divide", duration:233, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/15/e6/e8/15e6e8a4-4190-6a8b-86c3-ab4a51b88288/190295851286.jpg/600x600bb.jpg", color:"#22567d", genre:"pop", mood:"happy"},
+      {id:13, title:"Sunflower", artist:"Post Malone", album:"Spider-Man", duration:158, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/4b/30/2c/4b302cb6-7a14-5464-4e97-0577e9d0be49/18UMGIM82277.rgb.jpg/600x600bb.jpg", color:"#7a7d22", genre:"hip-hop", mood:"upbeat"},
+      {id:14, title:"Sweater Weather", artist:"The Neighbourhood", album:"I Love You.", duration:240, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/28/71/00/287100fb-5c31-0195-5343-e6b3625886d0/886443969834.jpg/600x600bb.jpg", color:"#363636", genre:"indie", mood:"chill"},
+      {id:15, title:"Save Your Tears", artist:"The Weeknd", album:"After Hours", duration:215, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/83/3a/f7/833af71b-2e0c-3303-24f5-8f5c546c073b/20UMGIM21167.rgb.jpg/600x600bb.jpg", color:"#b02a2a", genre:"synthpop", mood:"melancholic"},
+      {id:16, title:"good 4 u", artist:"Olivia Rodrigo", album:"SOUR", duration:178, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/76/46/48/76464884-0e9c-1951-a3f6-ce02f74c2b19/21UMGIM26093.rgb.jpg/600x600bb.jpg", color:"#5b3678", genre:"pop", mood:"energetic"},
+      {id:17, title:"Heat Waves", artist:"Glass Animals", album:"Dreamland", duration:238, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/da/8b/77/da8b7731-6f4f-eacf-5e74-8b23389eefa1/20UMGIM03371.rgb.jpg/600x600bb.jpg", color:"#783636", genre:"indie", mood:"chill"},
+      {id:18, title:"Peaches", artist:"Justin Bieber", album:"Justice", duration:198, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/e0/92/da/e092da2d-9f6d-11dc-7843-2021e95a2b61/21UMGIM17518.rgb.jpg/600x600bb.jpg", color:"#6f7a36", genre:"pop", mood:"chill"},
+      {id:19, title:"Watermelon Sugar", artist:"Harry Styles", album:"Fine Line", duration:174, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/2b/c4/c9/2bc4c9d4-3bc6-ab13-3f71-df0b89b173de/886448022213.jpg/600x600bb.jpg", color:"#7a365b", genre:"pop", mood:"happy"},
+      {id:20, title:"Kiss Me More", artist:"Doja Cat", album:"Planet Her", duration:208, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/14/f3/28/14f32832-b9d9-1ba1-e20a-18c2ff8b6a80/886449410873.jpg/600x600bb.jpg", color:"#753245", genre:"pop", mood:"upbeat"},
+      {id:21, title:"Stay", artist:"The Kid LAROI", album:"F*CK LOVE", duration:141, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/89/59/6a/89596ab9-fa3c-8d08-4d95-a6450fa2013c/886449400515.jpg/600x600bb.jpg", color:"#222222", genre:"pop", mood:"energetic"},
+      {id:22, title:"INDUSTRY BABY", artist:"Lil Nas X", album:"MONTERO", duration:212, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/f7/16/67/f7166746-6299-5e54-8c7c-9535e941a53e/886449403929.jpg/600x600bb.jpg", color:"#6e1531", genre:"hip-hop", mood:"energetic"},
+      {id:23, title:"Bad Habit", artist:"Steve Lacy", album:"Gemini Rights", duration:232, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/df/63/3d/df633d60-5e7f-7050-0857-0327c0a3649e/196589380630.jpg/600x600bb.jpg", color:"#595821", genre:"r&b", mood:"chill"},
+      {id:24, title:"golden hour", artist:"JVKE", album:"this is what...", duration:209, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/8d/1a/7b/8d1a7b44-316f-7c7f-4380-935673fb697a/5056167175650.jpg/600x600bb.jpg", color:"#594721", genre:"pop", mood:"romantic"},
+      {id:25, title:"Vampire", artist:"Olivia Rodrigo", album:"GUTS", duration:219, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/08/9e/07/089e0799-b405-9e69-b648-e6a19df9879c/24UMGIM30485.rgb.jpg/600x600bb.jpg", color:"#261536", genre:"pop", mood:"dramatic"},
+      {id:26, title:"I Think They Call This Love", artist:"Elliot James Reay", album:"Single", duration:180, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/6c/11/d6/6c11d681-aa3a-d59e-4c2e-f77e181026ab/190295092665.jpg/600x600bb.jpg", color:"#4a4a4a", genre:"r&b", mood:"romantic"},
+      {id:27, title:"Girlfriend", artist:"Justin Bieber", album:"Believe", duration:200, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/73/08/1a/73081a96-0f7c-b5f8-2757-5c17fb714323/12UMGIM31899.rgb.jpg/600x600bb.jpg", color:"#3b2f54", genre:"pop", mood:"upbeat"},
+      {id:28, title:"Butterfly", artist:"Jass Manak", album:"No Competition", duration:190, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b4/1b/a3/b41ba3ac-5ec4-a1b7-0edb-b044bccf85d2/3617051942905.jpg/600x600bb.jpg", color:"#1a4361", genre:"punjabi", mood:"romantic"}
     ],
     playlists: [
       {id:"p1", name:"Discover Weekly", cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/49/3d/ab/493dab54-f920-9043-6181-80993b8116c9/19UMGIM53909.rgb.jpg/600x600bb.jpg", songIds:[1, 15, 22], expanded: true},
@@ -1182,6 +1241,8 @@
     ],
     likedSongs: [{id: 2, addedAt: Date.now() - 3600000}, {id: 4, addedAt: Date.now() - 120000}], 
     voiceFeedbackEnabled: true, unknownCommandCount: 0,
+    tasteProfile: { genres: {}, moods: {}, artists: {}, totalSaves: 0 },
+    sessionSignals: [],
     currentSongId: 1, previousSongId: null, playHistory: [], playing: true, progress: 0, volume: 70
   };
 
@@ -1459,6 +1520,98 @@
     container.innerHTML = html;
   }
 
+  function renderHome() {
+    const tpContainer = document.getElementById('home-taste-profile');
+    const savesContainer = document.getElementById('home-session-saves');
+    const recsContainer = document.getElementById('home-recommendations');
+    if (!tpContainer) return; // Not on home screen layout
+
+    // Taste Profile Signal Meter
+    let strength = "Weak";
+    let pct = 5;
+    const saves = STATE.tasteProfile.totalSaves;
+    if (saves > 0) { pct = 25; strength = "Building"; }
+    if (saves > 2) { pct = 60; strength = "Strong"; }
+    if (saves > 5) { pct = 100; strength = "Very Strong"; }
+    
+    const topMoods = Object.entries(STATE.tasteProfile.moods).sort((a,b)=>b[1]-a[1]);
+    const topGenres = Object.entries(STATE.tasteProfile.genres).sort((a,b)=>b[1]-a[1]);
+    const topMood = topMoods.length > 0 ? topMoods[0][0] : null;
+    const topGenre = topGenres.length > 0 ? topGenres[0][0] : null;
+    
+    tpContainer.innerHTML = `
+      <h2 class="home-shelf-title">Taste Profile Signal</h2>
+      <div class="taste-profile-card">
+        <div class="tp-meter-wrap">
+          <div class="tp-meter-bg">
+            <div class="tp-meter-fill" style="width:${pct}%" aria-valuenow="${pct}"></div>
+          </div>
+          <div class="tp-meter-labels">
+            <span>Signal: <strong style="color:var(--green)">${strength}</strong></span>
+            <span style="color:var(--text2)">${saves} saves</span>
+          </div>
+        </div>
+        ${topMood ? `<div class="tp-tags">Top Vibes: <span class="tp-tag">${topMood}</span> <span class="tp-tag">${topGenre}</span></div>` : `<div style="color:var(--text2); font-size:13px; margin-top:8px">Listen and save to build your profile.</div>`}
+      </div>
+    `;
+    
+    // Session Saves
+    let savesHTML = `<h2 class="home-shelf-title">Saved This Session</h2>`;
+    if (STATE.sessionSignals.length === 0) {
+      savesHTML += `<div style="padding: 0 16px 24px; color:var(--text2); font-size:14px">Nothing saved this session. Say "Hey Spotify, save this".</div>`;
+    } else {
+      savesHTML += `<div class="home-shelf">`;
+      STATE.sessionSignals.forEach(sig => {
+         const s = getSong(sig.songId);
+         savesHTML += `
+          <div class="shelf-item" onclick="playSong(${s.id})">
+            <img src="${s.cover}" alt="">
+            <div class="shelf-item-title">${s.title}</div>
+            <div class="shelf-item-desc">${s.artist}</div>
+            <button class="card-play-btn" onclick="event.stopPropagation(); playSong(${s.id})"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+          </div>
+         `;
+      });
+      savesHTML += `</div>`;
+    }
+    savesContainer.innerHTML = savesHTML;
+    
+    // Recommendations
+    let recsHTML = `<h2 class="home-shelf-title">Recommended For You</h2>`;
+    const likedIds = STATE.likedSongs.map(ls => ls.id);
+    let pool = STATE.songs.filter(s => !likedIds.includes(s.id));
+    
+    if (topMood) {
+       pool = pool.sort((a,b) => {
+          let scoreA = (a.mood === topMood ? 2 : 0) + (a.genre === topGenre ? 1 : 0);
+          let scoreB = (b.mood === topMood ? 2 : 0) + (b.genre === topGenre ? 1 : 0);
+          return scoreB - scoreA;
+       });
+    } else {
+       // Randomize if no top mood
+       pool = pool.sort(() => 0.5 - Math.random());
+    }
+    const recs = pool.slice(0, 5); 
+    
+    recsHTML += `<div class="home-shelf">`;
+    recs.forEach(s => {
+       const causeSong = STATE.sessionSignals.find(sig => sig.mood === s.mood);
+       const causeTitle = causeSong ? getSong(causeSong.songId).title : null;
+       
+       recsHTML += `
+        <div class="shelf-item" onclick="playSong(${s.id})">
+          <img src="${s.cover}" alt="">
+          <div class="shelf-item-title">${s.title}</div>
+          <div class="shelf-item-desc">${s.artist}</div>
+          ${causeTitle && topMood ? `<div class="reasoning-tag">Because you saved ${causeTitle}</div>` : ''}
+          <button class="card-play-btn" onclick="event.stopPropagation(); playSong(${s.id})"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+        </div>
+       `;
+    });
+    recsHTML += `</div>`;
+    recsContainer.innerHTML = recsHTML;
+  }
+
   function render(changedProp) {
     const song = getSong(STATE.currentSongId);
     const isLiked = STATE.likedSongs.some(ls => ls.id === song.id);
@@ -1509,6 +1662,10 @@
 
     if (changedProp === 'likedSongs' || changedProp === 'playlists' || changedProp === 'likedExpanded' || changedProp === undefined) {
       renderLibrary();
+    }
+    
+    if (changedProp === 'activeTab' || changedProp === 'likedSongs' || changedProp === undefined) {
+      if (STATE.activeTab === 'home') renderHome();
     }
   }
 
