@@ -704,7 +704,7 @@
     audioCtx: new (window.AudioContext || window.webkitAudioContext)(),
     synth: window.speechSynthesis,
     isListening: false,
-    wakeWords: ["hey spotify", "hey spot", "spotify", "ok spotify", "okay spotify", "hi spotify", "yo spotify", "bro spotify", "open spotify", "play spotify"],
+    wakeWords: ["hey spotify"],
     undoSnapshot: null,
     undoTimeout: null,
     followUpWindow: null, // e.g. 'playlist_add'
@@ -728,7 +728,9 @@
     },
     
     duckAudio() {
-      audioPlayer.volume = 0.2;
+      if (STATE.playing) {
+        audioPlayer.volume = 0.2;
+      }
     },
     
     unduckAudio() {
@@ -746,7 +748,8 @@
       PLAYBACK_PAUSE: { pause: 4, stop: 4 },
       PLAYBACK_PLAY: { play: 4, resume: 3, continue: 3 },
       SLEEP_TIMER: { sleep: 3, timer: 3, stop: 1, minutes: 2, hour: 2 },
-      BATCH_SAVE: { three: 4, "3": 4, all: 3, everything: 3 }
+      BATCH_SAVE: { three: 4, "3": 4, all: 3, everything: 3 },
+      CANCEL: { nevermind: 5, cancel: 5, ignore: 5, abort: 5 }
     },
 
     init() {
@@ -819,6 +822,8 @@
       this.synth.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.rate = 1.1;
+      u.onstart = () => { this.isSpeaking = true; };
+      u.onend = () => { setTimeout(() => { this.isSpeaking = false; }, 500); };
       this.synth.speak(u);
     },
 
@@ -892,10 +897,18 @@
     },
 
     handleTranscript(interim, final) {
+      if (this.isSpeaking) return; // Prevent hearing its own voice through speakers
+
       if (final) {
         if (this.followUpWindow) {
-          this.handleFollowUpInput(final);
-          return;
+          if (this.followUpWindow === 'awaiting_command') {
+             this.followUpWindow = null;
+             this.parseIntent(final);
+             return;
+          } else {
+             this.handleFollowUpInput(final);
+             return;
+          }
         }
 
         let command = null;
@@ -913,6 +926,15 @@
           if (command === "") {
              this.toast("Listening...");
              this.speak("Hey, what can I do for you?");
+             
+             // Put engine in awaiting state so next phrase doesn't need wake word
+             this.followUpWindow = 'awaiting_command';
+             
+             // Keep UI visible and glowing
+             const vBar = document.getElementById('voice-bar');
+             vBar.classList.add('active');
+             document.querySelector('.voice-waveform').classList.add('listening');
+             document.getElementById('voice-transcript').textContent = 'Listening...';
           } else {
              this.parseIntent(command);
           }
@@ -951,30 +973,39 @@
 
     parseIntent(cmd) {
       this.snapshotState();
-      const words = cmd.replace(/[.,!?]/g, '').split(' ').filter(w => w.length > 0);
-      const scores = {
-        SAVE_PREVIOUS: this.scoreIntent(words, 'SAVE_PREVIOUS'),
-        SAVE_CURRENT: this.scoreIntent(words, 'SAVE_CURRENT'),
-        REMOVE_CURRENT: this.scoreIntent(words, 'REMOVE_CURRENT'),
-        UNDO: this.scoreIntent(words, 'UNDO'),
-        PLAYBACK_NEXT: this.scoreIntent(words, 'PLAYBACK_NEXT'),
-        PLAYBACK_PREV: this.scoreIntent(words, 'PLAYBACK_PREV'),
-        PLAYBACK_PAUSE: this.scoreIntent(words, 'PLAYBACK_PAUSE'),
-        PLAYBACK_PLAY: this.scoreIntent(words, 'PLAYBACK_PLAY'),
-        SLEEP_TIMER: this.scoreIntent(words, 'SLEEP_TIMER'),
-        BATCH_SAVE: this.scoreIntent(words, 'BATCH_SAVE')
-      };
+      
+      // Simulate realistic cloud processing latency
+      setTimeout(() => {
+        const words = cmd.replace(/[.,!?]/g, '').split(' ').filter(w => w.length > 0);
+        const scores = {
+          SAVE_PREVIOUS: this.scoreIntent(words, 'SAVE_PREVIOUS'),
+          SAVE_CURRENT: this.scoreIntent(words, 'SAVE_CURRENT'),
+          REMOVE_CURRENT: this.scoreIntent(words, 'REMOVE_CURRENT'),
+          UNDO: this.scoreIntent(words, 'UNDO'),
+          PLAYBACK_NEXT: this.scoreIntent(words, 'PLAYBACK_NEXT'),
+          PLAYBACK_PREV: this.scoreIntent(words, 'PLAYBACK_PREV'),
+          PLAYBACK_PAUSE: this.scoreIntent(words, 'PLAYBACK_PAUSE'),
+          PLAYBACK_PLAY: this.scoreIntent(words, 'PLAYBACK_PLAY'),
+          SLEEP_TIMER: this.scoreIntent(words, 'SLEEP_TIMER'),
+          BATCH_SAVE: this.scoreIntent(words, 'BATCH_SAVE'),
+          CANCEL: this.scoreIntent(words, 'CANCEL')
+        };
 
-      let topIntent = 'UNKNOWN';
-      let maxScore = 0;
-      for (const [intent, score] of Object.entries(scores)) {
-        if (score > maxScore) { maxScore = score; topIntent = intent; }
-      }
-      if (maxScore < 2) topIntent = 'UNKNOWN';
+        let topIntent = 'UNKNOWN';
+        let maxScore = 0;
+        for (const [intent, score] of Object.entries(scores)) {
+          if (score > maxScore) { maxScore = score; topIntent = intent; }
+        }
+        if (maxScore < 2) topIntent = 'UNKNOWN';
 
-      switch(topIntent) {
-        case 'UNDO':
-          this.undo(); this.unduckAudio(); return;
+        switch(topIntent) {
+          case 'CANCEL':
+            this.toast("Cancelled");
+            this.unduckAudio();
+            return;
+            
+          case 'UNDO':
+            this.undo(); this.unduckAudio(); return;
           
         case 'BATCH_SAVE':
           const hist = [STATE.currentSongId, STATE.previousSongId].filter(id => id);
@@ -1035,7 +1066,8 @@
           this.toast("Unknown command");
           this.unduckAudio();
           return;
-      }
+        }
+      }, 600); // 600ms simulated latency
     },
 
     handleFollowUpInput(text) {
