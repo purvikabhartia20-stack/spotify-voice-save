@@ -1235,6 +1235,13 @@
       if (stored) {
         _rawState = { ...DEFAULT_STATE, ...JSON.parse(stored) };
         _rawState.nowPlayingExpanded = false; 
+        
+        // Fix stale cache by forcing songs from code
+        if (typeof DEFAULT_STATE !== 'undefined' && DEFAULT_STATE.songs) {
+            _rawState.songs = DEFAULT_STATE.songs;
+        } else if (typeof MOCK_SONGS !== 'undefined') {
+            _rawState.songs = MOCK_SONGS;
+        }
       } else { _rawState = { ...DEFAULT_STATE }; }
     } catch (e) { _rawState = { ...DEFAULT_STATE }; }
   }
