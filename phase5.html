@@ -737,13 +737,23 @@
       SLEEP_TIMER: { sleep: 3, timer: 3, stop: 1, minutes: 2, hour: 2 },
       BATCH_SAVE: { three: 4, "3": 4, all: 3, everything: 3 },
       SESSION_RECAP: { recap: 4, "have i saved": 4, "did i save": 4, session: 3 },
-      CANCEL: { nevermind: 5, cancel: 5, ignore: 5, abort: 5 }
+      CANCEL: { nevermind: 5, cancel: 5, ignore: 5, abort: 5 },
+      PLAYLIST_ADD: { add: 4, put: 3, to: 1, in: 1, move: 4 },
+      PLAYLIST_CREATE: { create: 4, make: 4, new: 3, playlist: 2 },
+      PLAYLIST_DELETE: { delete: 4, remove: 3, rid: 3, playlist: 2 },
+      MOOD_STEERING: { chill: 4, energy: 4, upbeat: 4, happy: 4, sad: 4, romantic: 4, mood: 2 },
+      QUERY_SONG_INFO: { what: 3, song: 2, is: 1, this: 1, who: 3, sings: 3 },
+      QUERY_SAVED_STATUS: { is: 2, saved: 4, liked: 4, have: 2, i: 1 }
     },
 
     trackSaveSignal(songId) {
       const song = getSong(songId);
       if (!song) return;
       
+      // Reset unsaved counter
+      _rawState.consecutiveUnsavedSongs = 0;
+      saveState();
+
       // Update taste profile
       if (song.genre) _rawState.tasteProfile.genres[song.genre] = (_rawState.tasteProfile.genres[song.genre] || 0) + 1;
       if (song.mood) _rawState.tasteProfile.moods[song.mood] = (_rawState.tasteProfile.moods[song.mood] || 0) + 1;
@@ -1187,22 +1197,125 @@
           this.closeVoiceUI();
           return;
 
+        case 'QUERY_SONG_INFO':
+          const songInfo = getSong(STATE.currentSongId);
+          this.speak(`This is ${songInfo.title} by ${songInfo.artist}`);
+          this.toast(`${songInfo.title} by ${songInfo.artist}`);
+          this.closeVoiceUI();
+          return;
+        case 'QUERY_SAVED_STATUS':
+          // check all playlists
+          const isSaved = STATE.playlists.some(p => p.songIds.includes(STATE.currentSongId));
+          if (isSaved) {
+             this.speak("Yes, this is saved to your library.");
+             this.toast("Saved");
+          } else {
+             this.speak("No, this is not saved yet.");
+             this.toast("Not saved");
+          }
+          this.closeVoiceUI();
+          return;
+        case 'PLAYLIST_CREATE':
+          this.speak("What should I call the new playlist?");
+          this.showFollowUpWindow("What should I call it?");
+          return;
+        case 'PLAYLIST_DELETE':
+          // extract playlist name if possible
+          const pMatched = this.fuzzyPlaylistMatch(command.replace(/delete |remove |get rid of /i, ''));
+          if (pMatched) {
+             this.followUpData = { playlistId: pMatched.id };
+             this.speak(`Are you sure you want to delete ${pMatched.name}?`);
+             this.showFollowUpWindow("Are you sure?");
+          } else {
+             this.speak("I couldn't find a playlist with that name.");
+             this.closeVoiceUI();
+          }
+          return;
+        case 'MOOD_STEERING':
+          // Find a song with upbeat/chill mood
+          const targetMood = /chill|sad/.test(command) ? 'chill' : (/energy|upbeat|happy/.test(command) ? 'upbeat' : 'happy');
+          const moodSong = STATE.songs.find(s => s.mood === targetMood && s.id !== STATE.currentSongId);
+          if (moodSong) {
+             playSong(moodSong.id);
+             this.speak(`Playing something more ${targetMood}.`);
+             this.toast(`Steered to ${targetMood}`);
+          } else {
+             this.speak("I couldn't find anything right now.");
+          }
+          this.closeVoiceUI();
+          return;
+        case 'PLAYLIST_ADD':
+          // They said "add this to chill vibes"
+          const pAddMatch = this.fuzzyPlaylistMatch(command.replace(/add this to |move this to |put this in /i, ''));
+          if (pAddMatch) {
+             if (!pAddMatch.songIds.includes(STATE.currentSongId)) pAddMatch.songIds.push(STATE.currentSongId);
+             saveState(); render();
+             this.speak(`Added to ${pAddMatch.name}.`);
+             this.toast(`Added to ${pAddMatch.name}`);
+          } else {
+             this.speak("Which playlist?");
+             this.showFollowUpWindow("playlist_add_current");
+             this.followUpData = [STATE.currentSongId];
+          }
+          this.closeVoiceUI();
+          return;
         case 'UNKNOWN':
-          this.speak("I didn't quite catch that.");
-          this.toast("Unknown command");
+          const now = Date.now();
+          _rawState.unknownCommandTimestamps.push(now);
+          _rawState.unknownCommandTimestamps = _rawState.unknownCommandTimestamps.filter(t => now - t < 60000);
+          saveState();
+          
+          if (_rawState.unknownCommandTimestamps.length >= 3) {
+             this.toast("Cheatsheet: Try saying 'Save this', 'Skip', or 'Add to chill'");
+             _rawState.unknownCommandTimestamps = [];
+             saveState();
+          } else {
+             this.speak("I didn't quite catch that.");
+             this.toast("Unknown command");
+          }
           this.closeVoiceUI();
           return;
         }
       }, 600); // 600ms simulated latency
     },
 
-    handleFollowUpInput(text) {
+        handleFollowUpInput(text) {
       if (/(no|skip|never mind|cancel)/.test(text)) {
         this.closeFollowUp();
         this.speak("Okay.");
         return;
       }
       
+      if (this.followUpWindow === "What should I call it?") {
+         const newId = 'p' + (STATE.playlists.length + 1);
+         let cleanName = text.replace(/create a playlist called /i, '').replace(/called /i, '').trim();
+         cleanName = cleanName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+         if (!cleanName) cleanName = "New Playlist";
+         _rawState.playlists.push({ id: newId, name: cleanName, songIds: [] });
+         saveState(); render();
+         this.speak(`Created playlist ${cleanName}.`);
+         this.toast(`Created ${cleanName}`);
+         this.closeFollowUp();
+         return;
+      }
+
+      if (this.followUpWindow === "Are you sure?") {
+         if (/(yes|yeah|sure|do it)/.test(text)) {
+            if (this.followUpData && this.followUpData.playlistId) {
+                _rawState.playlists = _rawState.playlists.filter(p => p.id !== this.followUpData.playlistId);
+                saveState(); render();
+                this.speak("Playlist deleted.");
+                this.toast("Playlist deleted");
+            } else {
+                this.speak("Playlist deleted.");
+            }
+         } else {
+            this.speak("Okay, canceled.");
+         }
+         this.closeFollowUp();
+         return;
+      }
+
       const matched = this.fuzzyPlaylistMatch(text);
       if (matched && this.followUpWindow.startsWith('playlist_add')) {
          this.followUpData.forEach(id => {
@@ -1218,19 +1331,16 @@
          const pName = m.charAt(0).toUpperCase() + m.slice(1) + " Picks";
          const songIds = STATE.sessionSignals.filter(s => s.mood === m).map(s => s.songId);
          
-         _rawState.playlists.push({
-           id: newId,
-           name: pName,
-           cover: getSong(songIds[0]).cover,
-           songIds: songIds,
-           expanded: false
-         });
+         const uniqueIds = [...new Set(songIds)];
+         _rawState.playlists.push({ id: newId, name: pName, songIds: uniqueIds });
          saveState(); render();
-         this.speak(`Created ${pName}.`);
-         this.toast(`Playlist created`);
+         
+         this.speak(`Created playlist ${pName} with ${uniqueIds.length} songs.`);
+         this.toast(`Created ${pName}`);
          this.closeFollowUp();
       } else {
-         this.speak(`I don't see that playlist. Which one?`);
+         this.speak("I didn't find that playlist. Never mind.");
+         this.closeFollowUp();
       }
     }
   };
@@ -1402,6 +1512,11 @@
   }
 
   function playNext() {
+    _rawState.consecutiveUnsavedSongs++;
+    if (_rawState.consecutiveUnsavedSongs >= 3 && !_rawState.proactiveNudgeShown2) {
+      _rawState.proactiveNudgeShown2 = true;
+      VoiceEngine.toast("You've been listening for a while — heard anything you love? Say 'Hey Spotify, save this' to keep it.");
+    }
     STATE.previousSongId = STATE.currentSongId;
     STATE.playHistory.push(STATE.currentSongId);
     const currentIndex = STATE.songs.findIndex(s => s.id === STATE.currentSongId);
