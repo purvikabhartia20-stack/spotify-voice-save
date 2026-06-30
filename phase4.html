@@ -330,10 +330,18 @@
   }
   #voice-bar.active { transform: translateY(0); }
   
-  .voice-indicator { width: 12px; height: 12px; border-radius: 50%; background: var(--text3); margin-right: 16px; transition: all 0.3s; }
-  .voice-indicator.listening { background: var(--green); box-shadow: 0 0 12px var(--green); animation: pulse 2s infinite; }
-  .voice-indicator.command { background: #fff; box-shadow: 0 0 16px #fff; transform: scale(1.2); animation: none; }
-  @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(29, 185, 84, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); } }
+  .voice-waveform { display: flex; align-items: center; gap: 3px; height: 16px; margin-right: 16px; }
+  .wf-bar { width: 4px; height: 4px; background: var(--text3); border-radius: 2px; transition: background 0.3s; }
+  
+  .voice-waveform.listening .wf-bar { background: var(--green); animation: bounce 1s infinite ease-in-out alternate; }
+  .voice-waveform.listening .wf-bar:nth-child(2) { animation-delay: 0.2s; }
+  .voice-waveform.listening .wf-bar:nth-child(3) { animation-delay: 0.4s; }
+  
+  .voice-waveform.command .wf-bar { background: #fff; animation: bounce 0.5s infinite ease-in-out alternate; }
+  .voice-waveform.command .wf-bar:nth-child(2) { animation-delay: 0.1s; }
+  .voice-waveform.command .wf-bar:nth-child(3) { animation-delay: 0.2s; }
+  
+  @keyframes bounce { 0% { height: 4px; } 100% { height: 16px; } }
   
   .voice-transcript { font-size: 14px; color: #fff; font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .voice-transcript.interim { color: var(--text2); }
@@ -371,7 +379,11 @@
   
   <!-- VOICE STATUS BAR -->
   <div id="voice-bar">
-     <div class="voice-indicator"></div>
+     <div class="voice-waveform">
+        <div class="wf-bar"></div>
+        <div class="wf-bar"></div>
+        <div class="wf-bar"></div>
+     </div>
      <div class="voice-transcript" id="voice-transcript">Say "Hey Spotify"</div>
   </div>
   
@@ -552,6 +564,16 @@
     </div>
   </div>
 
+  <div style="margin-top: 24px; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+    <div style="font-size: 14px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+      <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; fill: var(--text);"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+      Privacy First
+    </div>
+    <div style="font-size: 13px; color: var(--text2); line-height: 1.5;">
+      Your voice is processed securely on your device using native browser APIs. Spotify does not record, store, or upload your continuous microphone feed. We only process transcripts after the wake word is detected.
+    </div>
+  </div>
+
   <div style="margin-top: 48px; text-align: center;">
     <button class="btn-primary" onclick="VoiceEngine.start()">Start Microphone</button>
   </div>
@@ -679,14 +701,39 @@
     // --- VOICE ENGINE ---
   const VoiceEngine = {
     recognition: null,
+    audioCtx: new (window.AudioContext || window.webkitAudioContext)(),
     synth: window.speechSynthesis,
     isListening: false,
-    wakeWords: ["hey spotify", "hey spot", "spotify", "ok spotify", "okay spotify", "hi spotify", "yo spotify", "ey spotify"],
-    followUpWindow: null, 
-    followUpData: null,
-    followUpTimeout: null,
+    wakeWords: ["hey spotify", "hey spot", "spotify", "ok spotify", "okay spotify", "hi spotify", "yo spotify", "bro spotify", "open spotify", "play spotify"],
     undoSnapshot: null,
     undoTimeout: null,
+    followUpWindow: null, // e.g. 'playlist_add'
+    followUpData: null,
+    followUpTimeout: null,
+    
+    playEarcon() {
+      if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+      const osc = this.audioCtx.createOscillator();
+      const gain = this.audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(this.audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, this.audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(800, this.audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0, this.audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.3, this.audioCtx.currentTime + 0.05);
+      gain.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 0.2);
+      osc.start();
+      osc.stop(this.audioCtx.currentTime + 0.2);
+    },
+    
+    duckAudio() {
+      audioPlayer.volume = 0.2;
+    },
+    
+    unduckAudio() {
+      audioPlayer.volume = 1.0;
+    },
 
     // Vocabulary with weights for intents
     vocab: {
@@ -707,47 +754,52 @@
         console.warn("Speech API not supported");
         return;
       }
-      this.recognition = new webkitSpeechRecognition();
-      this.recognition.continuous = true;
-      this.recognition.interimResults = true;
-      this.recognition.lang = 'en-US';
+      
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+         stream.getTracks().forEach(track => track.stop());
+         
+         this.recognition = new webkitSpeechRecognition();
+         this.recognition.continuous = true;
+         this.recognition.interimResults = true;
+         this.recognition.lang = 'en-US';
 
-      this.recognition.onstart = () => {
-        this.isListening = true;
-        document.getElementById('voice-bar').classList.add('active');
-        document.querySelector('.voice-indicator').classList.add('listening');
-        document.querySelector('.voice-indicator').classList.remove('command');
-        document.getElementById('voice-transcript').textContent = 'Listening...';
-        document.getElementById('voice-transcript').classList.add('interim');
-        document.getElementById('mic-status-text').textContent = 'Active (Listening)';
-      };
+         this.recognition.onstart = () => {
+           this.isListening = true;
+           document.getElementById('mic-status-text').textContent = 'Active (Background Mode)';
+           document.getElementById('mic-status-text').style.color = 'var(--green)';
+         };
 
-      this.recognition.onresult = (e) => {
-        let interim = '';
-        let final = '';
-        for (let i = e.resultIndex; i < e.results.length; ++i) {
-          if (e.results[i].isFinal) final += e.results[i][0].transcript.toLowerCase();
-          else interim += e.results[i][0].transcript.toLowerCase();
-        }
-        this.handleTranscript(interim, final);
-      };
+         this.recognition.onresult = (e) => {
+           let interim = '';
+           let final = '';
+           for (let i = e.resultIndex; i < e.results.length; ++i) {
+             if (e.results[i].isFinal) final += e.results[i][0].transcript.toLowerCase();
+             else interim += e.results[i][0].transcript.toLowerCase();
+           }
+           this.handleTranscript(interim, final);
+         };
 
-      this.recognition.onerror = (e) => {
-        console.error("Speech Error:", e.error);
-        if (e.error === 'not-allowed') {
-          this.isListening = false;
-          document.getElementById('mic-status-text').textContent = 'Blocked! Please allow mic access.';
-          document.getElementById('mic-status-text').style.color = 'var(--red)';
-        }
-      };
+         this.recognition.onerror = (e) => {
+           console.error("Speech Error:", e.error);
+           if (e.error === 'not-allowed') {
+             this.isListening = false;
+             document.getElementById('mic-status-text').textContent = 'Blocked! Please allow mic access.';
+             document.getElementById('mic-status-text').style.color = 'var(--red)';
+           }
+         };
 
-      this.recognition.onend = () => {
-        if (this.isListening) {
-          setTimeout(() => {
-            try { this.recognition.start(); } catch(e){}
-          }, 500);
-        }
-      };
+         this.recognition.onend = () => {
+           if (this.isListening) {
+             setTimeout(() => {
+               try { this.recognition.start(); } catch(e){}
+             }, 500);
+           }
+         };
+         this.start();
+      }).catch(err => {
+         document.getElementById('mic-status-text').textContent = 'Blocked! Please allow mic access.';
+         document.getElementById('mic-status-text').style.color = 'var(--red)';
+      });
     },
 
     start() {
@@ -759,7 +811,6 @@
     stop() {
       this.isListening = false;
       if (this.recognition) this.recognition.stop();
-      document.getElementById('voice-bar').classList.remove('active');
       document.getElementById('mic-status-text').textContent = 'Stopped';
     },
 
@@ -772,7 +823,7 @@
     },
 
     toast(msg) {
-      const q = document.getElementById('toast-container');
+      const q = document.getElementById('toast-container') || document.body;
       const el = document.createElement('div');
       el.className = 'toast';
       el.textContent = msg;
@@ -786,9 +837,10 @@
 
     showFollowUp(text, options) {
       const card = document.getElementById('conversation-card');
+      if (!card) return;
       document.getElementById('conv-text').textContent = text;
       const optEl = document.getElementById('conv-options');
-      optEl.innerHTML = options.map(o => \`<button class="conv-pill">\${o}</button>\`).join('');
+      optEl.innerHTML = options.map(o => `<button class="conv-pill">${o}</button>`).join('');
       card.classList.add('show');
       
       optEl.querySelectorAll('button').forEach(btn => {
@@ -796,16 +848,17 @@
       });
 
       clearTimeout(this.followUpTimeout);
-      this.followUpTimeout = setTimeout(() => this.closeFollowUp(), 8000);
+      this.followUpTimeout = setTimeout(() => this.closeFollowUp(), 20000);
     },
 
     closeFollowUp() {
-      document.getElementById('conversation-card').classList.remove('show');
+      const card = document.getElementById('conversation-card');
+      if (card) card.classList.remove('show');
       this.followUpWindow = null;
       this.followUpData = null;
+      this.unduckAudio();
     },
 
-    // NLP: Levenshtein distance for fuzzy matching
     levenshtein(a, b) {
       if (a.length === 0) return b.length;
       if (b.length === 0) return a.length;
@@ -825,13 +878,11 @@
       return matrix[b.length][a.length];
     },
 
-    // NLP: Score text against an intent vocabulary
     scoreIntent(words, intentName) {
       const v = this.vocab[intentName];
       let score = 0;
       for (let word of words) {
         for (let [kw, weight] of Object.entries(v)) {
-          // If perfect match or very close fuzzy match (distance <= 1)
           if (word === kw || (word.length > 3 && this.levenshtein(word, kw) <= 1)) {
             score += weight;
           }
@@ -841,23 +892,7 @@
     },
 
     handleTranscript(interim, final) {
-      const vTrans = document.getElementById('voice-transcript');
-      const vInd = document.querySelector('.voice-indicator');
-      
-      if (interim) {
-        const hasWake = this.wakeWords.some(w => interim.includes(w));
-        vInd.classList.toggle('command', hasWake);
-        vInd.classList.toggle('listening', !hasWake);
-        vTrans.textContent = interim;
-        vTrans.classList.add('interim');
-      }
-
       if (final) {
-        vTrans.textContent = final;
-        vTrans.classList.remove('interim');
-        vInd.classList.remove('command');
-        vInd.classList.add('listening');
-
         if (this.followUpWindow) {
           this.handleFollowUpInput(final);
           return;
@@ -868,16 +903,20 @@
           const idx = final.indexOf(w);
           if (idx !== -1) {
             command = final.substring(idx + w.length).trim();
+            this.playEarcon();
+            this.duckAudio();
             break;
           }
         }
 
-        if (command === "") {
-           this.toast("Hey - what can I do for you?");
-           this.speak("Hey, what can I do for you? Try 'save this'.");
-           return;
+        if (command !== null) {
+          if (command === "") {
+             this.toast("Listening...");
+             this.speak("Hey, what can I do for you?");
+          } else {
+             this.parseIntent(command);
+          }
         }
-        if (command) this.parseIntent(command);
       }
     },
 
@@ -889,45 +928,30 @@
 
     undo() {
       if (!this.undoSnapshot) {
-        this.speak("It's been a moment, I can't undo that anymore.");
-        this.toast("Cannot undo anymore.");
+        this.speak("I can't undo that anymore.");
         return;
       }
       _rawState = JSON.parse(this.undoSnapshot);
       saveState(); render();
       this.speak("Undone.");
-      this.toast("Action undone.");
       this.undoSnapshot = null;
     },
 
     fuzzyPlaylistMatch(text) {
       let bestMatch = null;
       let minDistance = 999;
-      
-      // Clean up common filler words in the text
       const cleanText = text.replace(/(add to|save to|put in)/g, '').trim();
-
       for (let p of STATE.playlists) {
         const dist = this.levenshtein(cleanText, p.name.toLowerCase());
-        // Exact substring matches win immediately
-        if (cleanText.includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(cleanText)) {
-          return p;
-        }
-        if (dist < minDistance && dist <= 3) { // Allow up to 3 typos
-          minDistance = dist;
-          bestMatch = p;
-        }
+        if (cleanText.includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(cleanText)) return p;
+        if (dist < minDistance && dist <= 3) { minDistance = dist; bestMatch = p; }
       }
       return bestMatch;
     },
 
     parseIntent(cmd) {
       this.snapshotState();
-      
-      // Tokenize input and clean punctuation
       const words = cmd.replace(/[.,!?]/g, '').split(' ').filter(w => w.length > 0);
-      
-      // Calculate scores for all intents
       const scores = {
         SAVE_PREVIOUS: this.scoreIntent(words, 'SAVE_PREVIOUS'),
         SAVE_CURRENT: this.scoreIntent(words, 'SAVE_CURRENT'),
@@ -941,114 +965,75 @@
         BATCH_SAVE: this.scoreIntent(words, 'BATCH_SAVE')
       };
 
-      // Find highest score
-      let topIntent = null;
+      let topIntent = 'UNKNOWN';
       let maxScore = 0;
       for (const [intent, score] of Object.entries(scores)) {
         if (score > maxScore) { maxScore = score; topIntent = intent; }
       }
-
-      // If confidence is too low, treat as unknown
       if (maxScore < 2) topIntent = 'UNKNOWN';
 
       switch(topIntent) {
         case 'UNDO':
-          this.undo();
-          return;
+          this.undo(); this.unduckAudio(); return;
           
         case 'BATCH_SAVE':
-          const hist = [STATE.currentSongId, STATE.previousSongId, STATE.previousPreviousSongId].filter(id => id);
+          const hist = [STATE.currentSongId, STATE.previousSongId].filter(id => id);
           hist.forEach(id => {
-             if (!STATE.likedSongs.some(ls => ls.id === id)) {
-               _rawState.likedSongs.push({id, addedAt: Date.now()});
-             }
+             if (!STATE.likedSongs.some(ls => ls.id === id)) _rawState.likedSongs.push({id, addedAt: Date.now()});
           });
           saveState(); render();
-          const titles = hist.map(id => getSong(id).title).join(", ");
-          this.speak(\`Saved \${hist.length} songs: \${titles}. Want to add them to a playlist?\`);
-          this.toast(\`Saved \${hist.length} songs\`);
+          this.speak(`Saved songs to library.`);
           this.followUpWindow = 'playlist_add_batch';
           this.followUpData = hist;
-          this.showFollowUp("Want to add them to a playlist?", STATE.playlists.map(p=>p.name));
+          this.showFollowUp("Add to a playlist?", STATE.playlists.map(p=>p.name));
           return;
 
         case 'SAVE_PREVIOUS':
-          if (!STATE.previousSongId) {
-             this.speak("There is no previous song yet in this session.");
-             return;
-          }
           const pSong = getSong(STATE.previousSongId);
-          if (!STATE.likedSongs.some(ls => ls.id === pSong.id)) {
-             _rawState.likedSongs.push({id: pSong.id, addedAt: Date.now()});
-             saveState(); render();
-          }
-          this.speak(\`Saved the last song, \${pSong.title}. Want to add it to a playlist?\`);
-          this.toast(\`❤️ Saved - \${pSong.title}\`);
+          if (pSong && !STATE.likedSongs.some(ls => ls.id === pSong.id)) _rawState.likedSongs.push({id: pSong.id, addedAt: Date.now()});
+          saveState(); render();
+          this.speak(`Saved.`);
           this.followUpWindow = 'playlist_add';
           this.followUpData = [pSong.id];
-          this.showFollowUp("Want to add it to a playlist?", STATE.playlists.map(p=>p.name));
+          this.showFollowUp("Add to a playlist?", STATE.playlists.map(p=>p.name));
           return;
 
         case 'SAVE_CURRENT':
           const song = getSong(STATE.currentSongId);
-          const isLiked = STATE.likedSongs.some(ls => ls.id === song.id);
-          if (!isLiked) {
-            _rawState.likedSongs.push({id: song.id, addedAt: Date.now()});
-            saveState(); render();
-          }
-          
-          // Secondary intent check: Did they say a playlist name in the same sentence?
-          const matched = this.fuzzyPlaylistMatch(cmd);
-          if (matched) {
-             if (!matched.songIds.includes(song.id)) matched.songIds.push(song.id);
-             saveState(); render();
-             this.speak(\`Added \${song.title} to \${matched.name}.\`);
-             this.toast(\`Added to \${matched.name}\`);
-          } else {
-             this.speak(\`Saved \${song.title}. Want to add it to a playlist?\`);
-             this.toast(\`❤️ Saved - \${song.title}\`);
-             this.followUpWindow = 'playlist_add';
-             this.followUpData = [song.id];
-             this.showFollowUp("Saved to Liked Songs ❤️ — want to add it to a playlist?", STATE.playlists.map(p=>p.name).concat(['No thanks']));
-          }
+          if (!STATE.likedSongs.some(ls => ls.id === song.id)) _rawState.likedSongs.push({id: song.id, addedAt: Date.now()});
+          saveState(); render();
+          this.speak(`Saved.`);
+          this.toast(`❤️ Saved`);
+          this.followUpWindow = 'playlist_add';
+          this.followUpData = [song.id];
+          this.showFollowUp("Add to a playlist?", STATE.playlists.map(p=>p.name).concat(['No thanks']));
           return;
 
         case 'REMOVE_CURRENT':
           const s = getSong(STATE.currentSongId);
           _rawState.likedSongs = STATE.likedSongs.filter(ls => ls.id !== s.id);
           saveState(); render();
-          this.speak(\`Removed \${s.title}.\`);
-          this.toast(\`Removed \${s.title}\`);
+          this.speak(`Removed.`);
+          this.toast(`Removed`);
+          this.unduckAudio();
           return;
 
-        case 'PLAYBACK_NEXT': playNext(); this.toast("Skipping"); return;
-        case 'PLAYBACK_PREV': playPrev(); this.toast("Going back"); return;
-        case 'PLAYBACK_PAUSE': if(STATE.playing) togglePlay(); this.toast("Paused"); return;
-        case 'PLAYBACK_PLAY': if(!STATE.playing) togglePlay(); this.toast("Playing"); return;
+        case 'PLAYBACK_NEXT': playNext(); this.toast("Next track"); this.unduckAudio(); return;
+        case 'PLAYBACK_PREV': playPrev(); this.toast("Previous track"); this.unduckAudio(); return;
+        case 'PLAYBACK_PAUSE': if(STATE.playing) togglePlay(); this.toast("Paused"); this.unduckAudio(); return;
+        case 'PLAYBACK_PLAY': if(!STATE.playing) togglePlay(); this.toast("Playing"); this.unduckAudio(); return;
         
         case 'SLEEP_TIMER':
-          const sleepMatch = cmd.match(/(\\d+)/);
+          const sleepMatch = cmd.match(/(\d+)/);
           const mins = sleepMatch ? sleepMatch[1] : "30";
-          this.speak(\`Sleep timer set for \${mins} minutes.\`);
-          this.toast(\`Timer: \${mins}m\`);
+          this.speak(`Sleep timer set for ${mins} minutes.`);
+          this.unduckAudio();
           return;
 
-        default:
-          // Check for Volume command which is a bit dynamic
-          if (/(louder|volume up|turn it up)/.test(cmd)) {
-             this.toast("Volume: 85%");
-             return;
-          }
-          
-          // Unknown handler
-          _rawState.unknownCommandCount++;
-          if (STATE.unknownCommandCount >= 3) {
-             _rawState.unknownCommandCount = 0;
-             this.toast("Cheatsheet: Try 'save this', 'next song', or 'add to playlist'");
-             this.speak("Having trouble? Try saying save this, or next song.");
-          } else {
-             this.speak("I didn't quite catch that.");
-          }
+        case 'UNKNOWN':
+          this.speak("I didn't quite catch that.");
+          this.toast("Unknown command");
+          this.unduckAudio();
           return;
       }
     },
@@ -1066,11 +1051,11 @@
             if (!matched.songIds.includes(id)) matched.songIds.push(id);
          });
          saveState(); render();
-         this.speak(\`Added to \${matched.name}.\`);
-         this.toast(\`Added to \${matched.name}\`);
+         this.speak(`Added to ${matched.name}.`);
+         this.toast(`Added to ${matched.name}`);
          this.closeFollowUp();
       } else {
-         this.speak(\`I don't see that playlist. Which one?\`);
+         this.speak(`I don't see that playlist. Which one?`);
       }
     }
   };
