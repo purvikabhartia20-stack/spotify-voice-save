@@ -2,53 +2,93 @@
     // --- VOICE ENGINE ---
   const VoiceEngine = {
     recognition: null,
+    audioCtx: new (window.AudioContext || window.webkitAudioContext)(),
     synth: window.speechSynthesis,
     isListening: false,
-    wakeWords: ["hey spotify", "hey spot", "spotify", "ok spotify", "okay spotify", "hi spotify", "yo spotify", "ey spotify"],
-    followUpWindow: null, 
-    followUpData: null,
-    followUpTimeout: null,
+    wakeWords: ["hey spotify"],
     undoSnapshot: null,
     undoTimeout: null,
+    followUpWindow: null, // e.g. 'playlist_add'
+    followUpData: null,
+    followUpTimeout: null,
+    
+    playEarcon() {
+      if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+      const osc = this.audioCtx.createOscillator();
+      const gain = this.audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(this.audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, this.audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(800, this.audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0, this.audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.3, this.audioCtx.currentTime + 0.05);
+      gain.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 0.2);
+      osc.start();
+      osc.stop(this.audioCtx.currentTime + 0.2);
+    },
+    
+    duckAudio() {
+      if (STATE.playing) {
+        audioPlayer.volume = 0.2;
+      }
+    },
+    
+    unduckAudio() {
+      audioPlayer.volume = 1.0;
+    },
+
+    closeVoiceUI() {
+      const vBar = document.getElementById('voice-bar');
+      if (vBar) vBar.classList.remove('active');
+      const vWave = document.querySelector('.voice-waveform');
+      if (vWave) vWave.classList.remove('listening', 'command');
+      const vTrans = document.getElementById('voice-transcript');
+      if (vTrans) vTrans.textContent = '';
+      this.unduckAudio();
+    },
 
     // Vocabulary with weights for intents
     vocab: {
       SAVE_CURRENT: { save: 3, add: 3, like: 2, keep: 2, bookmark: 2, remember: 2, this: 1, song: 1, fire: 3, banger: 3 },
       SAVE_PREVIOUS: { save: 2, add: 2, like: 2, last: 5, previous: 5, before: 3 },
-      REMOVE_CURRENT: { remove: 3, unlike: 3, dislike: 3, unsave: 3, delete: 2 },
+      REMOVE_CURRENT: { remove: 3, unlike: 3, dislike: 3, unsave: 3, delete: 2, rid: 3 },
       UNDO: { undo: 4, cancel: 3, wait: 2, mind: 3, back: 2, mistake: 2 },
       PLAYBACK_NEXT: { next: 4, skip: 4 },
       PLAYBACK_PREV: { back: 4, previous: 2, last: 1 },
       PLAYBACK_PAUSE: { pause: 4, stop: 4 },
       PLAYBACK_PLAY: { play: 4, resume: 3, continue: 3 },
       SLEEP_TIMER: { sleep: 3, timer: 3, stop: 1, minutes: 2, hour: 2 },
-      BATCH_SAVE: { three: 4, "3": 4, all: 3, everything: 3 }
+      BATCH_SAVE: { three: 4, "3": 4, all: 3, everything: 3 },
+      CANCEL: { nevermind: 5, cancel: 5, ignore: 5, abort: 5 }
     },
 
     init() {
-      if (!('webkitSpeechRecognition' in window)) {
-        console.warn("Speech API not supported");
+      // 1. Universal cross-browser/device support check
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        console.warn("Speech API not supported on this device/browser.");
+        const statusEl = document.getElementById('mic-status-text');
+        if (statusEl) {
+           statusEl.textContent = 'Voice features not supported on this device/browser.';
+           statusEl.style.color = 'var(--red)';
+        }
         return;
       }
       
-      // Explicitly request microphone to force the browser prompt instantly
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-         // Stop the explicit track, we just wanted the permission prompt to trigger
          stream.getTracks().forEach(track => track.stop());
          
-         this.recognition = new webkitSpeechRecognition();
+         this.recognition = new SpeechRecognition();
          this.recognition.continuous = true;
          this.recognition.interimResults = true;
          this.recognition.lang = 'en-US';
 
          this.recognition.onstart = () => {
            this.isListening = true;
-           document.getElementById('voice-bar').classList.add('active');
-           document.querySelector('.voice-indicator').classList.add('listening');
-           document.querySelector('.voice-indicator').classList.remove('command');
-           document.getElementById('voice-transcript').textContent = 'Listening...';
-           document.getElementById('voice-transcript').classList.add('interim');
-           document.getElementById('mic-status-text').textContent = 'Active (Listening)';
+           document.getElementById('mic-status-text').textContent = 'Active (Background Mode)';
+           document.getElementById('mic-status-text').style.color = 'var(--green)';
          };
 
          this.recognition.onresult = (e) => {
@@ -71,24 +111,41 @@
          };
 
          this.recognition.onend = () => {
-           if (this.isListening) {
-             setTimeout(() => {
-               try { this.recognition.start(); } catch(e){}
-             }, 500);
+           const wasListening = this.isListening;
+           this.isListening = false;
+           const st = document.getElementById('mic-status-text');
+           if (st) {
+             st.textContent = 'Reconnecting...';
+             st.style.color = 'var(--text2)';
+           }
+           
+           if (wasListening) {
+             clearTimeout(this.restartTimeout);
+             this.restartTimeout = setTimeout(() => {
+               try { this.start(); } catch(e){}
+             }, 300);
            }
          };
-
-         // Start listening immediately after initialization
          this.start();
+         
+         // Add manual restart on click
+         const micStatus = document.querySelector('.mic-status');
+         if (micStatus) {
+           micStatus.style.cursor = 'pointer';
+           micStatus.title = "Click to force restart microphone";
+           micStatus.onclick = () => {
+             this.stop();
+             setTimeout(() => { this.isListening = true; this.start(); }, 500);
+           };
+         }
       }).catch(err => {
-         console.error("Mic denied at getUserMedia", err);
          document.getElementById('mic-status-text').textContent = 'Blocked! Please allow mic access.';
          document.getElementById('mic-status-text').style.color = 'var(--red)';
       });
     },
 
     start() {
-      if (this.recognition && !this.isListening) {
+      if (this.recognition) {
         try { this.recognition.start(); } catch(e){}
       }
     },
@@ -96,20 +153,44 @@
     stop() {
       this.isListening = false;
       if (this.recognition) this.recognition.stop();
-      document.getElementById('voice-bar').classList.remove('active');
       document.getElementById('mic-status-text').textContent = 'Stopped';
     },
 
     speak(text) {
       if (!STATE.voiceFeedbackEnabled) return;
       this.synth.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 1.1;
-      this.synth.speak(u);
+      this.currentUtterance = new SpeechSynthesisUtterance(text);
+      this.currentUtterance.rate = 1.1;
+      
+      this.currentUtterance.onstart = () => { 
+        this.isSpeaking = true; 
+        if (this.recognition) { try { this.recognition.stop(); } catch(e){} }
+        clearTimeout(this.speakFailsafe);
+        this.speakFailsafe = setTimeout(() => { 
+            this.isSpeaking = false; 
+            this.start();
+        }, 5000); 
+      };
+      
+      this.currentUtterance.onend = () => { 
+        clearTimeout(this.speakFailsafe);
+        setTimeout(() => { 
+            this.isSpeaking = false; 
+            this.start();
+        }, 500); 
+      };
+      
+      this.currentUtterance.onerror = () => {
+        clearTimeout(this.speakFailsafe);
+        this.isSpeaking = false;
+        this.start();
+      };
+      
+      this.synth.speak(this.currentUtterance);
     },
 
     toast(msg) {
-      const q = document.getElementById('toast-container');
+      const q = document.getElementById('toast-container') || document.body;
       const el = document.createElement('div');
       el.className = 'toast';
       el.textContent = msg;
@@ -123,6 +204,7 @@
 
     showFollowUp(text, options) {
       const card = document.getElementById('conversation-card');
+      if (!card) return;
       document.getElementById('conv-text').textContent = text;
       const optEl = document.getElementById('conv-options');
       optEl.innerHTML = options.map(o => `<button class="conv-pill">${o}</button>`).join('');
@@ -133,16 +215,17 @@
       });
 
       clearTimeout(this.followUpTimeout);
-      this.followUpTimeout = setTimeout(() => this.closeFollowUp(), 8000);
+      this.followUpTimeout = setTimeout(() => this.closeFollowUp(), 20000);
     },
 
     closeFollowUp() {
-      document.getElementById('conversation-card').classList.remove('show');
+      const card = document.getElementById('conversation-card');
+      if (card) card.classList.remove('show');
       this.followUpWindow = null;
       this.followUpData = null;
+      this.closeVoiceUI();
     },
 
-    // NLP: Levenshtein distance for fuzzy matching
     levenshtein(a, b) {
       if (a.length === 0) return b.length;
       if (b.length === 0) return a.length;
@@ -162,13 +245,11 @@
       return matrix[b.length][a.length];
     },
 
-    // NLP: Score text against an intent vocabulary
     scoreIntent(words, intentName) {
       const v = this.vocab[intentName];
       let score = 0;
       for (let word of words) {
         for (let [kw, weight] of Object.entries(v)) {
-          // If perfect match or very close fuzzy match (distance <= 1)
           if (word === kw || (word.length > 3 && this.levenshtein(word, kw) <= 1)) {
             score += weight;
           }
@@ -179,42 +260,68 @@
 
     handleTranscript(interim, final) {
       const vTrans = document.getElementById('voice-transcript');
-      const vInd = document.querySelector('.voice-indicator');
-      
-      if (interim) {
-        const hasWake = this.wakeWords.some(w => interim.includes(w));
-        vInd.classList.toggle('command', hasWake);
-        vInd.classList.toggle('listening', !hasWake);
-        vTrans.textContent = interim;
-        vTrans.classList.add('interim');
+      if (vTrans && !this.followUpWindow) {
+         if (final) {
+            vTrans.textContent = final;
+            vTrans.classList.remove('interim');
+         } else if (interim) {
+            vTrans.textContent = interim;
+            vTrans.classList.add('interim');
+         }
       }
 
-      if (final) {
-        vTrans.textContent = final;
-        vTrans.classList.remove('interim');
-        vInd.classList.remove('command');
-        vInd.classList.add('listening');
+      if (this.isSpeaking) return; // Prevent hearing its own voice through speakers
 
+      if (final) {
         if (this.followUpWindow) {
-          this.handleFollowUpInput(final);
-          return;
+          if (this.followUpWindow === 'awaiting_command') {
+             this.followUpWindow = null;
+             this.parseIntent(final);
+             return;
+          } else {
+             this.handleFollowUpInput(final);
+             return;
+          }
         }
 
         let command = null;
+        let cleanFinal = final.toLowerCase().replace(/[.,!?]/g, '');
         for (let w of this.wakeWords) {
-          const idx = final.indexOf(w);
+          const idx = cleanFinal.indexOf(w);
           if (idx !== -1) {
-            command = final.substring(idx + w.length).trim();
+            command = cleanFinal.substring(idx + w.length).trim();
+            this.playEarcon();
+            this.duckAudio();
             break;
           }
         }
 
-        if (command === "") {
-           this.toast("Hey - what can I do for you?");
-           this.speak("Hey, what can I do for you? Try 'save this'.");
-           return;
+        if (command !== null) {
+          if (command === "") {
+             this.toast("Listening...");
+             this.speak("Hey, what can I do for you?");
+             
+             // Put engine in awaiting state so next phrase doesn't need wake word
+             this.followUpWindow = 'awaiting_command';
+             clearTimeout(this.followUpTimeout);
+             this.followUpTimeout = setTimeout(() => {
+               if (this.followUpWindow === 'awaiting_command') {
+                 this.closeFollowUp();
+                 this.toast("Timeout");
+               }
+             }, 8000);
+             
+             // Keep UI visible and glowing
+             const vBar = document.getElementById('voice-bar');
+             vBar.classList.add('active');
+             const vWave = document.querySelector('.voice-waveform');
+             vWave.classList.remove('command');
+             vWave.classList.add('listening');
+             document.getElementById('voice-transcript').textContent = 'Listening...';
+          } else {
+             this.parseIntent(command);
+          }
         }
-        if (command) this.parseIntent(command);
       }
     },
 
@@ -226,34 +333,23 @@
 
     undo() {
       if (!this.undoSnapshot) {
-        this.speak("It's been a moment, I can't undo that anymore.");
-        this.toast("Cannot undo anymore.");
+        this.speak("I can't undo that anymore.");
         return;
       }
       _rawState = JSON.parse(this.undoSnapshot);
       saveState(); render();
       this.speak("Undone.");
-      this.toast("Action undone.");
       this.undoSnapshot = null;
     },
 
     fuzzyPlaylistMatch(text) {
       let bestMatch = null;
       let minDistance = 999;
-      
-      // Clean up common filler words in the text
       const cleanText = text.replace(/(add to|save to|put in)/g, '').trim();
-
       for (let p of STATE.playlists) {
         const dist = this.levenshtein(cleanText, p.name.toLowerCase());
-        // Exact substring matches win immediately
-        if (cleanText.includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(cleanText)) {
-          return p;
-        }
-        if (dist < minDistance && dist <= 3) { // Allow up to 3 typos
-          minDistance = dist;
-          bestMatch = p;
-        }
+        if (cleanText.includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(cleanText)) return p;
+        if (dist < minDistance && dist <= 3) { minDistance = dist; bestMatch = p; }
       }
       return bestMatch;
     },
@@ -261,133 +357,100 @@
     parseIntent(cmd) {
       this.snapshotState();
       
-      // Tokenize input and clean punctuation
-      const words = cmd.replace(/[.,!?]/g, '').split(' ').filter(w => w.length > 0);
-      
-      // Calculate scores for all intents
-      const scores = {
-        SAVE_PREVIOUS: this.scoreIntent(words, 'SAVE_PREVIOUS'),
-        SAVE_CURRENT: this.scoreIntent(words, 'SAVE_CURRENT'),
-        REMOVE_CURRENT: this.scoreIntent(words, 'REMOVE_CURRENT'),
-        UNDO: this.scoreIntent(words, 'UNDO'),
-        PLAYBACK_NEXT: this.scoreIntent(words, 'PLAYBACK_NEXT'),
-        PLAYBACK_PREV: this.scoreIntent(words, 'PLAYBACK_PREV'),
-        PLAYBACK_PAUSE: this.scoreIntent(words, 'PLAYBACK_PAUSE'),
-        PLAYBACK_PLAY: this.scoreIntent(words, 'PLAYBACK_PLAY'),
-        SLEEP_TIMER: this.scoreIntent(words, 'SLEEP_TIMER'),
-        BATCH_SAVE: this.scoreIntent(words, 'BATCH_SAVE')
-      };
+      // Simulate realistic cloud processing latency
+      setTimeout(() => {
+        const words = cmd.replace(/[.,!?]/g, '').split(' ').filter(w => w.length > 0);
+        const scores = {
+          SAVE_PREVIOUS: this.scoreIntent(words, 'SAVE_PREVIOUS'),
+          SAVE_CURRENT: this.scoreIntent(words, 'SAVE_CURRENT'),
+          REMOVE_CURRENT: this.scoreIntent(words, 'REMOVE_CURRENT'),
+          UNDO: this.scoreIntent(words, 'UNDO'),
+          PLAYBACK_NEXT: this.scoreIntent(words, 'PLAYBACK_NEXT'),
+          PLAYBACK_PREV: this.scoreIntent(words, 'PLAYBACK_PREV'),
+          PLAYBACK_PAUSE: this.scoreIntent(words, 'PLAYBACK_PAUSE'),
+          PLAYBACK_PLAY: this.scoreIntent(words, 'PLAYBACK_PLAY'),
+          SLEEP_TIMER: this.scoreIntent(words, 'SLEEP_TIMER'),
+          BATCH_SAVE: this.scoreIntent(words, 'BATCH_SAVE'),
+          CANCEL: this.scoreIntent(words, 'CANCEL')
+        };
 
-      // Find highest score
-      let topIntent = null;
-      let maxScore = 0;
-      for (const [intent, score] of Object.entries(scores)) {
-        if (score > maxScore) { maxScore = score; topIntent = intent; }
-      }
+        let topIntent = 'UNKNOWN';
+        let maxScore = 0;
+        for (const [intent, score] of Object.entries(scores)) {
+          if (score > maxScore) { maxScore = score; topIntent = intent; }
+        }
+        if (maxScore < 2) topIntent = 'UNKNOWN';
 
-      // If confidence is too low, treat as unknown
-      if (maxScore < 2) topIntent = 'UNKNOWN';
-
-      switch(topIntent) {
-        case 'UNDO':
-          this.undo();
-          return;
+        switch(topIntent) {
+          case 'CANCEL':
+            this.toast("Cancelled");
+            this.closeVoiceUI();
+            return;
+            
+          case 'UNDO':
+            this.undo(); this.closeVoiceUI(); return;
           
         case 'BATCH_SAVE':
-          const hist = [STATE.currentSongId, STATE.previousSongId, STATE.previousPreviousSongId].filter(id => id);
+          const hist = [STATE.currentSongId, STATE.previousSongId].filter(id => id);
           hist.forEach(id => {
-             if (!STATE.likedSongs.some(ls => ls.id === id)) {
-               _rawState.likedSongs.push({id, addedAt: Date.now()});
-             }
+             if (!STATE.likedSongs.some(ls => ls.id === id)) _rawState.likedSongs.push({id, addedAt: Date.now()});
           });
           saveState(); render();
-          const titles = hist.map(id => getSong(id).title).join(", ");
-          this.speak(`Saved ${hist.length} songs: ${titles}. Want to add them to a playlist?`);
-          this.toast(`Saved ${hist.length} songs`);
+          this.speak(`Saved songs to library.`);
           this.followUpWindow = 'playlist_add_batch';
           this.followUpData = hist;
-          this.showFollowUp("Want to add them to a playlist?", STATE.playlists.map(p=>p.name));
+          this.showFollowUp("Add to a playlist?", STATE.playlists.map(p=>p.name));
           return;
 
         case 'SAVE_PREVIOUS':
-          if (!STATE.previousSongId) {
-             this.speak("There is no previous song yet in this session.");
-             return;
-          }
           const pSong = getSong(STATE.previousSongId);
-          if (!STATE.likedSongs.some(ls => ls.id === pSong.id)) {
-             _rawState.likedSongs.push({id: pSong.id, addedAt: Date.now()});
-             saveState(); render();
-          }
-          this.speak(`Saved the last song, ${pSong.title}. Want to add it to a playlist?`);
-          this.toast(`❤️ Saved - ${pSong.title}`);
+          if (pSong && !STATE.likedSongs.some(ls => ls.id === pSong.id)) _rawState.likedSongs.push({id: pSong.id, addedAt: Date.now()});
+          saveState(); render();
+          this.speak(`Saved.`);
           this.followUpWindow = 'playlist_add';
           this.followUpData = [pSong.id];
-          this.showFollowUp("Want to add it to a playlist?", STATE.playlists.map(p=>p.name));
+          this.showFollowUp("Add to a playlist?", STATE.playlists.map(p=>p.name));
           return;
 
         case 'SAVE_CURRENT':
           const song = getSong(STATE.currentSongId);
-          const isLiked = STATE.likedSongs.some(ls => ls.id === song.id);
-          if (!isLiked) {
-            _rawState.likedSongs.push({id: song.id, addedAt: Date.now()});
-            saveState(); render();
-          }
-          
-          // Secondary intent check: Did they say a playlist name in the same sentence?
-          const matched = this.fuzzyPlaylistMatch(cmd);
-          if (matched) {
-             if (!matched.songIds.includes(song.id)) matched.songIds.push(song.id);
-             saveState(); render();
-             this.speak(`Added ${song.title} to ${matched.name}.`);
-             this.toast(`Added to ${matched.name}`);
-          } else {
-             this.speak(`Saved ${song.title}. Want to add it to a playlist?`);
-             this.toast(`❤️ Saved - ${song.title}`);
-             this.followUpWindow = 'playlist_add';
-             this.followUpData = [song.id];
-             this.showFollowUp("Saved to Liked Songs ❤️ — want to add it to a playlist?", STATE.playlists.map(p=>p.name).concat(['No thanks']));
-          }
+          if (!STATE.likedSongs.some(ls => ls.id === song.id)) _rawState.likedSongs.push({id: song.id, addedAt: Date.now()});
+          saveState(); render();
+          this.speak(`Saved.`);
+          this.toast(`❤️ Saved`);
+          this.followUpWindow = 'playlist_add';
+          this.followUpData = [song.id];
+          this.showFollowUp("Add to a playlist?", STATE.playlists.map(p=>p.name).concat(['No thanks']));
           return;
 
         case 'REMOVE_CURRENT':
           const s = getSong(STATE.currentSongId);
           _rawState.likedSongs = STATE.likedSongs.filter(ls => ls.id !== s.id);
           saveState(); render();
-          this.speak(`Removed ${s.title}.`);
-          this.toast(`Removed ${s.title}`);
+          this.speak(`Removed.`);
+          this.toast(`Removed`);
+          this.closeVoiceUI();
           return;
 
-        case 'PLAYBACK_NEXT': playNext(); this.toast("Skipping"); return;
-        case 'PLAYBACK_PREV': playPrev(); this.toast("Going back"); return;
-        case 'PLAYBACK_PAUSE': if(STATE.playing) togglePlay(); this.toast("Paused"); return;
-        case 'PLAYBACK_PLAY': if(!STATE.playing) togglePlay(); this.toast("Playing"); return;
+        case 'PLAYBACK_NEXT': playNext(); this.toast("Next track"); this.closeVoiceUI(); return;
+        case 'PLAYBACK_PREV': playPrev(); this.toast("Previous track"); this.closeVoiceUI(); return;
+        case 'PLAYBACK_PAUSE': if(STATE.playing) togglePlay(); this.toast("Paused"); this.closeVoiceUI(); return;
+        case 'PLAYBACK_PLAY': if(!STATE.playing) togglePlay(); this.toast("Playing"); this.closeVoiceUI(); return;
         
         case 'SLEEP_TIMER':
-          const sleepMatch = cmd.match(/(\\d+)/);
+          const sleepMatch = cmd.match(/(\d+)/);
           const mins = sleepMatch ? sleepMatch[1] : "30";
           this.speak(`Sleep timer set for ${mins} minutes.`);
-          this.toast(`Timer: ${mins}m`);
+          this.closeVoiceUI();
           return;
 
-        default:
-          // Check for Volume command which is a bit dynamic
-          if (/(louder|volume up|turn it up)/.test(cmd)) {
-             this.toast("Volume: 85%");
-             return;
-          }
-          
-          // Unknown handler
-          _rawState.unknownCommandCount++;
-          if (STATE.unknownCommandCount >= 3) {
-             _rawState.unknownCommandCount = 0;
-             this.toast("Cheatsheet: Try 'save this', 'next song', or 'add to playlist'");
-             this.speak("Having trouble? Try saying save this, or next song.");
-          } else {
-             this.speak("I didn't quite catch that.");
-          }
+        case 'UNKNOWN':
+          this.speak("I didn't quite catch that.");
+          this.toast("Unknown command");
+          this.closeVoiceUI();
           return;
-      }
+        }
+      }, 600); // 600ms simulated latency
     },
 
     handleFollowUpInput(text) {
@@ -420,31 +483,34 @@
     nowPlayingExpanded: false,
     likedExpanded: true,
     songs: [
-      {id:1, title:"Blinding Lights", artist:"The Weeknd", album:"After Hours", duration:200, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/a6/6e/bf/a66ebf79-5008-8948-b352-a790fc87446b/19UM1IM04638.rgb.jpg/600x600bb.jpg", color:"#b02a2a"},
-      {id:2, title:"Levitating", artist:"Dua Lipa", album:"Future Nostalgia", duration:203, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/6c/11/d6/6c11d681-aa3a-d59e-4c2e-f77e181026ab/190295092665.jpg/600x600bb.jpg", color:"#a832a8"},
-      {id:3, title:"Glimpse of Us", artist:"Joji", album:"Smithereens", duration:234, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d0/2a/43/d02a433a-3ab8-9a94-b07d-1dc599b64966/93624864387.jpg/600x600bb.jpg", color:"#222222"},
-      {id:4, title:"As It Was", artist:"Harry Styles", album:"Harry's House", duration:167, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/2a/19/fb/2a19fb85-2f70-9e44-f2a9-82abe679b88e/886449990061.jpg/600x600bb.jpg", color:"#8c512a"},
-      {id:5, title:"Kill Bill", artist:"SZA", album:"SOS", duration:153, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/bd/3b/a9/bd3ba9fb-9609-144f-bcfe-ead67b5f6ab3/196589564931.jpg/600x600bb.jpg", color:"#1a4361"},
-      {id:6, title:"Creepin'", artist:"Metro Boomin", album:"Heroes & Villains", duration:221, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/82/f7/2b/82f72ba4-524c-fc9d-cb8c-5a96d2ddf536/22UM1IM35267.rgb.jpg/600x600bb.jpg", color:"#611a1a"},
-      {id:7, title:"Anti-Hero", artist:"Taylor Swift", album:"Midnights", duration:200, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/3d/01/f2/3d01f2e5-5a08-835f-3d30-d031720b2b80/22UM1IM07364.rgb.jpg/600x600bb.jpg", color:"#43346b"},
-      {id:8, title:"Pink + White", artist:"Frank Ocean", album:"Blonde", duration:184, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/bb/45/68/bb4568f3-68cd-619d-fbcb-4e179916545d/BlondCover-Final.jpg/600x600bb.jpg", color:"#6b6734"},
-      {id:9, title:"Cruel Summer", artist:"Taylor Swift", album:"Lover", duration:178, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/49/3d/ab/493dab54-f920-9043-6181-80993b8116c9/19UMGIM53909.rgb.jpg/600x600bb.jpg", color:"#8a2364"},
-      {id:10, title:"Starboy", artist:"The Weeknd", album:"Starboy", duration:230, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/b5/92/bb/b592bb72-52e3-e756-9b26-9f56d08f47ab/16UMGIM67864.rgb.jpg/600x600bb.jpg", color:"#141738"},
-      {id:11, title:"Lover", artist:"Taylor Swift", album:"Lover", duration:221, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/49/3d/ab/493dab54-f920-9043-6181-80993b8116c9/19UMGIM53909.rgb.jpg/600x600bb.jpg", color:"#8a2364"},
-      {id:12, title:"Shape of You", artist:"Ed Sheeran", album:"Divide", duration:233, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/15/e6/e8/15e6e8a4-4190-6a8b-86c3-ab4a51b88288/190295851286.jpg/600x600bb.jpg", color:"#22567d"},
-      {id:13, title:"Sunflower", artist:"Post Malone", album:"Spider-Man", duration:158, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/4b/30/2c/4b302cb6-7a14-5464-4e97-0577e9d0be49/18UMGIM82277.rgb.jpg/600x600bb.jpg", color:"#7a7d22"},
-      {id:14, title:"Sweater Weather", artist:"The Neighbourhood", album:"I Love You.", duration:240, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/28/71/00/287100fb-5c31-0195-5343-e6b3625886d0/886443969834.jpg/600x600bb.jpg", color:"#363636"},
-      {id:15, title:"Save Your Tears", artist:"The Weeknd", album:"After Hours", duration:215, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/83/3a/f7/833af71b-2e0c-3303-24f5-8f5c546c073b/20UMGIM21167.rgb.jpg/600x600bb.jpg", color:"#b02a2a"},
-      {id:16, title:"good 4 u", artist:"Olivia Rodrigo", album:"SOUR", duration:178, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/76/46/48/76464884-0e9c-1951-a3f6-ce02f74c2b19/21UMGIM26093.rgb.jpg/600x600bb.jpg", color:"#5b3678"},
-      {id:17, title:"Heat Waves", artist:"Glass Animals", album:"Dreamland", duration:238, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/da/8b/77/da8b7731-6f4f-eacf-5e74-8b23389eefa1/20UMGIM03371.rgb.jpg/600x600bb.jpg", color:"#783636"},
-      {id:18, title:"Peaches", artist:"Justin Bieber", album:"Justice", duration:198, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/e0/92/da/e092da2d-9f6d-11dc-7843-2021e95a2b61/21UMGIM17518.rgb.jpg/600x600bb.jpg", color:"#6f7a36"},
-      {id:19, title:"Watermelon Sugar", artist:"Harry Styles", album:"Fine Line", duration:174, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/2b/c4/c9/2bc4c9d4-3bc6-ab13-3f71-df0b89b173de/886448022213.jpg/600x600bb.jpg", color:"#7a365b"},
-      {id:20, title:"Kiss Me More", artist:"Doja Cat", album:"Planet Her", duration:208, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/14/f3/28/14f32832-b9d9-1ba1-e20a-18c2ff8b6a80/886449410873.jpg/600x600bb.jpg", color:"#753245"},
-      {id:21, title:"Stay", artist:"The Kid LAROI", album:"F*CK LOVE", duration:141, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/89/59/6a/89596ab9-fa3c-8d08-4d95-a6450fa2013c/886449400515.jpg/600x600bb.jpg", color:"#222222"},
-      {id:22, title:"INDUSTRY BABY", artist:"Lil Nas X", album:"MONTERO", duration:212, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/f7/16/67/f7166746-6299-5e54-8c7c-9535e941a53e/886449403929.jpg/600x600bb.jpg", color:"#6e1531"},
-      {id:23, title:"Bad Habit", artist:"Steve Lacy", album:"Gemini Rights", duration:232, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/df/63/3d/df633d60-5e7f-7050-0857-0327c0a3649e/196589380630.jpg/600x600bb.jpg", color:"#595821"},
-      {id:24, title:"golden hour", artist:"JVKE", album:"this is what...", duration:209, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/8d/1a/7b/8d1a7b44-316f-7c7f-4380-935673fb697a/5056167175650.jpg/600x600bb.jpg", color:"#594721"},
-      {id:25, title:"Vampire", artist:"Olivia Rodrigo", album:"GUTS", duration:219, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/08/9e/07/089e0799-b405-9e69-b648-e6a19df9879c/24UMGIM30485.rgb.jpg/600x600bb.jpg", color:"#261536"}
+      {id:1, title:"Blinding Lights", artist:"The Weeknd", album:"After Hours", duration:200, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/a6/6e/bf/a66ebf79-5008-8948-b352-a790fc87446b/19UM1IM04638.rgb.jpg/600x600bb.jpg", color:"#b02a2a", genre:"synthpop", mood:"euphoric"},
+      {id:2, title:"Levitating", artist:"Dua Lipa", album:"Future Nostalgia", duration:203, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/30/a8/f1/30a8f1b6-e75d-55b4-ee88-667a062e0103/24UM1IM12416.rgb.jpg/600x600bb.jpg", color:"#a832a8", genre:"pop", mood:"happy"},
+      {id:3, title:"Glimpse of Us", artist:"Joji", album:"Smithereens", duration:234, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d0/2a/43/d02a433a-3ab8-9a94-b07d-1dc599b64966/93624864387.jpg/600x600bb.jpg", color:"#222222", genre:"indie", mood:"melancholic"},
+      {id:4, title:"As It Was", artist:"Harry Styles", album:"Harry's House", duration:167, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/2a/19/fb/2a19fb85-2f70-9e44-f2a9-82abe679b88e/886449990061.jpg/600x600bb.jpg", color:"#8c512a", genre:"pop", mood:"upbeat"},
+      {id:5, title:"Kill Bill", artist:"SZA", album:"SOS", duration:153, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/bd/3b/a9/bd3ba9fb-9609-144f-bcfe-ead67b5f6ab3/196589564931.jpg/600x600bb.jpg", color:"#1a4361", genre:"r&b", mood:"chill"},
+      {id:6, title:"Creepin'", artist:"Metro Boomin", album:"Heroes & Villains", duration:221, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/82/f7/2b/82f72ba4-524c-fc9d-cb8c-5a96d2ddf536/22UM1IM35267.rgb.jpg/600x600bb.jpg", color:"#611a1a", genre:"hip-hop", mood:"dark"},
+      {id:7, title:"Anti-Hero", artist:"Taylor Swift", album:"Midnights", duration:200, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/3d/01/f2/3d01f2e5-5a08-835f-3d30-d031720b2b80/22UM1IM07364.rgb.jpg/600x600bb.jpg", color:"#43346b", genre:"pop", mood:"reflective"},
+      {id:8, title:"Pink + White", artist:"Frank Ocean", album:"Blonde", duration:184, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/bb/45/68/bb4568f3-68cd-619d-fbcb-4e179916545d/BlondCover-Final.jpg/600x600bb.jpg", color:"#6b6734", genre:"r&b", mood:"chill"},
+      {id:9, title:"Cruel Summer", artist:"Taylor Swift", album:"Lover", duration:178, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/49/3d/ab/493dab54-f920-9043-6181-80993b8116c9/19UMGIM53909.rgb.jpg/600x600bb.jpg", color:"#8a2364", genre:"pop", mood:"euphoric"},
+      {id:10, title:"Starboy", artist:"The Weeknd", album:"Starboy", duration:230, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/b5/92/bb/b592bb72-52e3-e756-9b26-9f56d08f47ab/16UMGIM67864.rgb.jpg/600x600bb.jpg", color:"#141738", genre:"pop", mood:"energetic"},
+      {id:11, title:"Lover", artist:"Taylor Swift", album:"Lover", duration:221, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/49/3d/ab/493dab54-f920-9043-6181-80993b8116c9/19UMGIM53909.rgb.jpg/600x600bb.jpg", color:"#8a2364", genre:"pop", mood:"romantic"},
+      {id:12, title:"Shape of You", artist:"Ed Sheeran", album:"Divide", duration:233, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/15/e6/e8/15e6e8a4-4190-6a8b-86c3-ab4a51b88288/190295851286.jpg/600x600bb.jpg", color:"#22567d", genre:"pop", mood:"happy"},
+      {id:13, title:"Sunflower", artist:"Post Malone", album:"Spider-Man", duration:158, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/4b/30/2c/4b302cb6-7a14-5464-4e97-0577e9d0be49/18UMGIM82277.rgb.jpg/600x600bb.jpg", color:"#7a7d22", genre:"hip-hop", mood:"upbeat"},
+      {id:14, title:"Sweater Weather", artist:"The Neighbourhood", album:"I Love You.", duration:240, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/28/71/00/287100fb-5c31-0195-5343-e6b3625886d0/886443969834.jpg/600x600bb.jpg", color:"#363636", genre:"indie", mood:"chill"},
+      {id:15, title:"Save Your Tears", artist:"The Weeknd", album:"After Hours", duration:215, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/83/3a/f7/833af71b-2e0c-3303-24f5-8f5c546c073b/20UMGIM21167.rgb.jpg/600x600bb.jpg", color:"#b02a2a", genre:"synthpop", mood:"melancholic"},
+      {id:16, title:"good 4 u", artist:"Olivia Rodrigo", album:"SOUR", duration:178, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/76/46/48/76464884-0e9c-1951-a3f6-ce02f74c2b19/21UMGIM26093.rgb.jpg/600x600bb.jpg", color:"#5b3678", genre:"pop", mood:"energetic"},
+      {id:17, title:"Heat Waves", artist:"Glass Animals", album:"Dreamland", duration:238, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/da/8b/77/da8b7731-6f4f-eacf-5e74-8b23389eefa1/20UMGIM03371.rgb.jpg/600x600bb.jpg", color:"#783636", genre:"indie", mood:"chill"},
+      {id:18, title:"Peaches", artist:"Justin Bieber", album:"Justice", duration:198, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/e0/92/da/e092da2d-9f6d-11dc-7843-2021e95a2b61/21UMGIM17518.rgb.jpg/600x600bb.jpg", color:"#6f7a36", genre:"pop", mood:"chill"},
+      {id:19, title:"Watermelon Sugar", artist:"Harry Styles", album:"Fine Line", duration:174, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/2b/c4/c9/2bc4c9d4-3bc6-ab13-3f71-df0b89b173de/886448022213.jpg/600x600bb.jpg", color:"#7a365b", genre:"pop", mood:"happy"},
+      {id:20, title:"Kiss Me More", artist:"Doja Cat", album:"Planet Her", duration:208, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/14/f3/28/14f32832-b9d9-1ba1-e20a-18c2ff8b6a80/886449410873.jpg/600x600bb.jpg", color:"#753245", genre:"pop", mood:"upbeat"},
+      {id:21, title:"Stay", artist:"The Kid LAROI", album:"F*CK LOVE", duration:141, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/89/59/6a/89596ab9-fa3c-8d08-4d95-a6450fa2013c/886449400515.jpg/600x600bb.jpg", color:"#222222", genre:"pop", mood:"energetic"},
+      {id:22, title:"INDUSTRY BABY", artist:"Lil Nas X", album:"MONTERO", duration:212, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/f7/16/67/f7166746-6299-5e54-8c7c-9535e941a53e/886449403929.jpg/600x600bb.jpg", color:"#6e1531", genre:"hip-hop", mood:"energetic"},
+      {id:23, title:"Bad Habit", artist:"Steve Lacy", album:"Gemini Rights", duration:232, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/df/63/3d/df633d60-5e7f-7050-0857-0327c0a3649e/196589380630.jpg/600x600bb.jpg", color:"#595821", genre:"r&b", mood:"chill"},
+      {id:24, title:"golden hour", artist:"JVKE", album:"this is what...", duration:209, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/8d/1a/7b/8d1a7b44-316f-7c7f-4380-935673fb697a/5056167175650.jpg/600x600bb.jpg", color:"#594721", genre:"pop", mood:"romantic"},
+      {id:25, title:"Vampire", artist:"Olivia Rodrigo", album:"GUTS", duration:219, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/08/9e/07/089e0799-b405-9e69-b648-e6a19df9879c/24UMGIM30485.rgb.jpg/600x600bb.jpg", color:"#261536", genre:"pop", mood:"dramatic"},
+      {id:26, title:"I Think They Call This Love", artist:"Elliot James Reay", album:"Single", duration:180, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/30/a8/f1/30a8f1b6-e75d-55b4-ee88-667a062e0103/24UM1IM12416.rgb.jpg/600x600bb.jpg", color:"#4a4a4a", genre:"r&b", mood:"romantic"},
+      {id:27, title:"Boyfriend", artist:"Justin Bieber", album:"Believe", duration:200, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/73/08/1a/73081a96-0f7c-b5f8-2757-5c17fb714323/12UMGIM31899.rgb.jpg/600x600bb.jpg", color:"#3b2f54", genre:"pop", mood:"upbeat"},
+      {id:28, title:"Butterfly", artist:"Jass Manak", album:"No Competition", duration:190, cover:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b4/1b/a3/b41ba3ac-5ec4-a1b7-0edb-b044bccf85d2/3617051942905.jpg/600x600bb.jpg", color:"#1a4361", genre:"punjabi", mood:"romantic"}
     ],
     playlists: [
       {id:"p1", name:"Discover Weekly", cover:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/49/3d/ab/493dab54-f920-9043-6181-80993b8116c9/19UMGIM53909.rgb.jpg/600x600bb.jpg", songIds:[1, 15, 22], expanded: true},
@@ -470,6 +536,13 @@
       if (stored) {
         _rawState = { ...DEFAULT_STATE, ...JSON.parse(stored) };
         _rawState.nowPlayingExpanded = false; 
+        
+        // Fix stale cache by forcing songs from code
+        if (typeof DEFAULT_STATE !== 'undefined' && DEFAULT_STATE.songs) {
+            _rawState.songs = DEFAULT_STATE.songs;
+        } else if (typeof MOCK_SONGS !== 'undefined') {
+            _rawState.songs = MOCK_SONGS;
+        }
       } else { _rawState = { ...DEFAULT_STATE }; }
     } catch (e) { _rawState = { ...DEFAULT_STATE }; }
   }
