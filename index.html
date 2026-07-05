@@ -798,20 +798,19 @@
     },
 
     init() {
-      // 1. Universal cross-browser/device support check
-      if (!('webkitSpeechRecognition' in window)) {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRec) {
         console.warn("Speech API not supported on this device/browser.");
-        // Try to show a toast, but if init is called before DOM load it might fail, so wrap in timeout
         setTimeout(() => {
-           this.toast("Voice not supported on iOS/Safari. Please use Chrome on Desktop.");
+           this.toast("Voice not supported on this browser. Please use Google Chrome.");
         }, 1000);
         return;
       }
+      this.recognition = new SpeechRec();
       
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
          stream.getTracks().forEach(track => track.stop());
          
-         this.recognition = new SpeechRecognition();
          this.recognition.continuous = true;
          this.recognition.interimResults = true;
          this.recognition.lang = 'en-US';
