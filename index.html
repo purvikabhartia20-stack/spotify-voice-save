@@ -799,15 +799,12 @@
 
     init() {
       // 1. Universal cross-browser/device support check
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      
-      if (!SpeechRecognition) {
+      if (!('webkitSpeechRecognition' in window)) {
         console.warn("Speech API not supported on this device/browser.");
-        const statusEl = document.getElementById('mic-status-text');
-        if (statusEl) {
-           statusEl.textContent = 'Voice features not supported on this device/browser.';
-           statusEl.style.color = 'var(--red)';
-        }
+        // Try to show a toast, but if init is called before DOM load it might fail, so wrap in timeout
+        setTimeout(() => {
+           this.toast("Voice not supported on iOS/Safari. Please use Chrome on Desktop.");
+        }, 1000);
         return;
       }
       
