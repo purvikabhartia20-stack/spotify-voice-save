@@ -29,15 +29,13 @@
           // Permission granted – we can stop the tracks immediately
           stream.getTracks().forEach(t => t.stop());
           this.micGranted = true;
-          // Enable the Start button if it exists
-          const btn = document.querySelector('button[onclick*="VoiceEngine.start"]');
-          if (btn) btn.disabled = false;
+          // Enable the Start and Push-to-Talk buttons
+          document.querySelectorAll('#start-mic-btn, #push-to-talk-btn').forEach(b => b.disabled = false);
         })
         .catch(err => {
           console.error('Mic permission error:', err);
           this.toast('Microphone permission denied. Please allow access in the browser settings.');
-          const btn = document.querySelector('button[onclick*="VoiceEngine.start"]');
-          if (btn) btn.disabled = true;
+          document.querySelectorAll('#start-mic-btn, #push-to-talk-btn').forEach(b => b.disabled = true);
         });
 
       this.recognition.onstart = () => {
