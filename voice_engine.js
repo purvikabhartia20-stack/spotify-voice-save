@@ -70,11 +70,15 @@
       };
 
       this.recognition.onend = () => {
-        if (this.isListening) {
+        // Only auto-restart if we are in continuous listening mode (not push-to-talk)
+        if (this.isListening && !this.isPushToTalk) {
           // auto restart to keep "always on"
           setTimeout(() => {
             try { this.recognition.start(); } catch(e){}
           }, 500);
+        } else {
+          this.isListening = false;
+          document.getElementById('voice-bar').classList.remove('active');
         }
       };
     },
@@ -84,6 +88,7 @@
         this.toast('Microphone not accessible. Please grant permission and reload the page.');
         return;
       }
+      this.isPushToTalk = false;
       if (this.recognition && !this.isListening) {
         try { this.recognition.start(); } catch(e){}
       }
@@ -96,6 +101,7 @@
         this.toast('Microphone not accessible.');
         return;
       }
+      this.isPushToTalk = true;
       if (this.recognition && !this.isListening) {
         try { this.recognition.start(); } catch(e){}
       }
@@ -104,8 +110,7 @@
       // Called on mouseup / mouseleave – stop listening but keep engine ready
       if (this.recognition && this.isListening) {
         this.recognition.stop();
-        this.isListening = false;
-        document.getElementById('voice-bar').classList.remove('active');
+        // The onend handler will cleanup UI state.
       }
     },
 
@@ -194,18 +199,23 @@
 
         // Detect wake word
         let command = null;
-        for (let w of this.wakeWords) {
-          const idx = final.indexOf(w);
-          if (idx !== -1) {
-            command = final.substring(idx + w.length).trim();
-            break;
+        if (this.isPushToTalk) {
+          // Bypass wake word entirely for Push-to-Talk
+          command = final.trim();
+        } else {
+          for (let w of this.wakeWords) {
+            const idx = final.indexOf(w);
+            if (idx !== -1) {
+              command = final.substring(idx + w.length).trim();
+              break;
+            }
           }
-        }
-        // If it was just "spotify" as the wake word with no command, ask what they want
-        if (command === "") {
-           this.toast("Hey - what can I do for you?");
-           this.speak("Hey, what can I do for you? Try 'save this' or 'next song'.");
-           return;
+          // If it was just "spotify" as the wake word with no command, ask what they want
+          if (command === "") {
+             this.toast("Hey - what can I do for you?");
+             this.speak("Hey, what can I do for you? Try 'save this' or 'next song'.");
+             return;
+          }
         }
 
         if (command) {
