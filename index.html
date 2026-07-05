@@ -555,9 +555,8 @@
     </div>
   </div>
 
-  <div style="margin-top: 48px; text-align: center;">
-    <button class="btn-primary" onclick="VoiceEngine.start()">Start Microphone</button>
-  </div>
+      <button class="btn-primary" id="start-mic-btn" onclick="VoiceEngine.start()" disabled>Start Microphone</button>
+      <button class="btn-primary" id="push-to-talk-btn" disabled onmousedown="VoiceEngine.startListening()" onmouseup="VoiceEngine.stopListening()" onmouseleave="VoiceEngine.stopListening()">Push‑to‑Talk</button>
 </div>
 
 </section>

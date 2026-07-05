@@ -11,14 +11,34 @@
     undoTimeout: null,
 
     init() {
-      if (!('webkitSpeechRecognition' in window)) {
-        console.warn("Speech API not supported");
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRec) {
+        console.warn("Speech API not supported on this device/browser.");
+        this.toast("Voice not supported on this browser. Please use Chrome.");
         return;
       }
-      this.recognition = new webkitSpeechRecognition();
+      this.recognition = new SpeechRec();
       this.recognition.continuous = true;
       this.recognition.interimResults = true;
       this.recognition.lang = 'en-US';
+
+      // ---- Microphone permission check ----
+      this.micGranted = false;
+      navigator.mediaDevices.getUserMedia({audio:true})
+        .then(stream => {
+          // Permission granted – we can stop the tracks immediately
+          stream.getTracks().forEach(t => t.stop());
+          this.micGranted = true;
+          // Enable the Start button if it exists
+          const btn = document.querySelector('button[onclick*="VoiceEngine.start"]');
+          if (btn) btn.disabled = false;
+        })
+        .catch(err => {
+          console.error('Mic permission error:', err);
+          this.toast('Microphone permission denied. Please allow access in the browser settings.');
+          const btn = document.querySelector('button[onclick*="VoiceEngine.start"]');
+          if (btn) btn.disabled = true;
+        });
 
       this.recognition.onstart = () => {
         this.isListening = true;
@@ -60,12 +80,37 @@
     },
 
     start() {
+      if (!this.micGranted) {
+        this.toast('Microphone not accessible. Please grant permission and reload the page.');
+        return;
+      }
       if (this.recognition && !this.isListening) {
         try { this.recognition.start(); } catch(e){}
       }
     },
 
+    // New push‑to‑talk API
+    startListening() {
+      // Called on mousedown – only start if mic granted and not already listening
+      if (!this.micGranted) {
+        this.toast('Microphone not accessible.');
+        return;
+      }
+      if (this.recognition && !this.isListening) {
+        try { this.recognition.start(); } catch(e){}
+      }
+    },
+    stopListening() {
+      // Called on mouseup / mouseleave – stop listening but keep engine ready
+      if (this.recognition && this.isListening) {
+        this.recognition.stop();
+        this.isListening = false;
+        document.getElementById('voice-bar').classList.remove('active');
+      }
+    },
+
     stop() {
+      // Legacy stop (used by UI if needed)
       this.isListening = false;
       if (this.recognition) this.recognition.stop();
       document.getElementById('voice-bar').classList.remove('active');
