@@ -814,6 +814,8 @@
       
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
          stream.getTracks().forEach(track => track.stop());
+         this.micGranted = true;
+         document.querySelectorAll('#start-mic-btn, #push-to-talk-btn').forEach(b => b.disabled = false);
          
          this.recognition.continuous = true;
          this.recognition.interimResults = true;
@@ -847,20 +849,26 @@
          this.recognition.onend = () => {
            const wasListening = this.isListening;
            this.isListening = false;
-           const st = document.getElementById('mic-status-text');
-           if (st) {
-             st.textContent = 'Reconnecting...';
-             st.style.color = 'var(--text2)';
-           }
            
-           if (wasListening) {
+           const st = document.getElementById('mic-status-text');
+           if (wasListening && !this.isPushToTalk) {
+             if (st) {
+               st.textContent = 'Reconnecting...';
+               st.style.color = 'var(--text2)';
+             }
              clearTimeout(this.restartTimeout);
              this.restartTimeout = setTimeout(() => {
                try { this.start(); } catch(e){}
              }, 300);
+           } else {
+             if (st) {
+               st.textContent = 'Stopped';
+               st.style.color = 'var(--text2)';
+             }
            }
          };
-         this.start();
+         
+         // Removed the automatic this.start() here so it waits for user to click button
          
          // Add manual restart on click
          const micStatus = document.querySelector('.mic-status');
@@ -875,12 +883,37 @@
       }).catch(err => {
          document.getElementById('mic-status-text').textContent = 'Blocked! Please allow mic access.';
          document.getElementById('mic-status-text').style.color = 'var(--red)';
+         document.querySelectorAll('#start-mic-btn, #push-to-talk-btn').forEach(b => b.disabled = true);
       });
     },
 
     start() {
-      if (this.recognition) {
+      if (!this.micGranted) {
+        this.toast('Microphone not accessible. Please grant permission.');
+        return;
+      }
+      this.isPushToTalk = false;
+      if (this.recognition && !this.isListening) {
         try { this.recognition.start(); } catch(e){}
+      }
+    },
+
+    startListening() {
+      if (!this.micGranted) {
+        this.toast('Microphone not accessible.');
+        return;
+      }
+      this.isPushToTalk = true;
+      if (this.recognition && !this.isListening) {
+        try { this.recognition.start(); } catch(e){}
+      }
+    },
+
+    stopListening() {
+      // Called on mouseup / mouseleave – stop listening but keep engine ready
+      if (this.recognition && this.isListening) {
+        this.recognition.stop();
+        // The onend handler will cleanup UI state.
       }
     },
 
@@ -1022,13 +1055,19 @@
 
         let command = null;
         let cleanFinal = final.toLowerCase().replace(/[.,!?]/g, '');
-        for (let w of this.wakeWords) {
-          const idx = cleanFinal.indexOf(w);
-          if (idx !== -1) {
-            command = cleanFinal.substring(idx + w.length).trim();
-            this.playEarcon();
-            this.duckAudio();
-            break;
+        
+        if (this.isPushToTalk) {
+          command = cleanFinal.trim();
+          this.duckAudio();
+        } else {
+          for (let w of this.wakeWords) {
+            const idx = cleanFinal.indexOf(w);
+            if (idx !== -1) {
+              command = cleanFinal.substring(idx + w.length).trim();
+              this.playEarcon();
+              this.duckAudio();
+              break;
+            }
           }
         }
 
