@@ -40,9 +40,12 @@
       };
 
       this.recognition.onerror = (e) => {
+        console.error("Speech Error:", e.error);
         if (e.error === 'not-allowed') {
-          console.error("Mic denied");
           this.isListening = false;
+          this.toast("Microphone access denied.");
+        } else if (e.error !== 'no-speech') {
+          this.toast("Mic Error: " + e.error);
         }
       };
 
